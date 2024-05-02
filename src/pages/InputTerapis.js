@@ -5,19 +5,28 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Select from "react-tailwindcss-select";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, dbImage } from "../config/Firebase";
+import { addDoc, collection } from "firebase/firestore";
+import Swal from "sweetalert2";
 class InputTerapis extends React.Component {
   constructor(props) {
     super(props);
-    console.log(props);
     this.state = {
-      nama: "",
       alamat: "",
-      tanggalLahir: "",
-      photo: null,
       email: "",
-      no_hp: "",
+      id: null,
+      nama: null,
+      jenis_kelamin: null,
+      pengalaman: null,
+      umur: null,
+      foto: null,
+      kontak: null,
+      tanggalLahir: null,
       value: "hadir",
-      tanggal: dayjs().locale("id"),
+      // tanggal: dayjs().locale("id"),
+      isProses: false,
+      imgSementara: "",
     };
   }
   componentDidMount() {}
@@ -33,72 +42,102 @@ class InputTerapis extends React.Component {
       tanggalData: formattedDate2,
       jam: jam,
     });
-    console.log(today.format("YYYY-MM-DDTHH:mm"));
-  };
-  handleInputChange = (e) => {
-    const { name, value } = e.target;
-
-    // Update the state with the new value
-    this.setState({ [name]: value }, () => {
-      // Callback to ensure state is updated before calling getRegistrasi
-    });
   };
 
-  handleDateChange = (name, selectedDate) => {
-    // Convert selectedDate to Dayjs object if it's not already
-    const dayjsDate = dayjs(selectedDate);
+  handleFileChange = (e) => {
+    const file = e.target.files[0];
 
-    // Ensure dayjsDate is a valid Dayjs object
-    if (!dayjsDate.isValid()) {
-      return; // Handle invalid date selection appropriately
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      this.setState({ foto: event.target.result });
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  hitungUmur = async (selectedDate) => {
+    const tanggalLahir = new Date(selectedDate);
+    const tahunSekarang = new Date().getFullYear();
+    try {
+      const tanggalLahirObj = new Date(tanggalLahir);
+      const tahunLahir = tanggalLahirObj.getFullYear();
+      const bulanLahir = tanggalLahirObj.getMonth() + 1;
+
+      let umur = tahunSekarang - tahunLahir;
+
+      if (
+        new Date(tahunSekarang, bulanLahir - 1, tanggalLahirObj.getDate()) >
+        new Date()
+      ) {
+        umur--;
+      }
+
+      const year = tanggalLahir.getFullYear();
+      const month = String(tanggalLahir.getMonth() + 1).padStart(2, "0"); // Tambah 1 karena bulan dimulai dari 0
+      const day = String(tanggalLahir.getDate()).padStart(2, "0");
+
+      const formattedDate = `${year}-${month}-${day}`;
+
+      await new Promise((resolve) => {
+        this.setState({ umur: umur, tanggalLahir: formattedDate }, resolve);
+      });
+      return umur;
+    } catch (error) {
+      console.error("gagal menghitung");
+      throw error;
     }
-
-    // Subtract one day from the selected date
-
-    // Format the modified date in the desired ISO 8601 format
-
-    if (name === "tanggalAwal") {
-      const formattedDate = dayjsDate.format("YYYY-MM-DD");
-
-      this.setState(
-        {
-          tanggalFilterMulai: formattedDate,
-          tanggalAwal: selectedDate,
-        },
-        () => {
-          console.log("awal", this.state.tanggalFilterMulai);
-          console.log("akhir", this.state.tanggalFilterAkhir);
-
-          this.getRegistrasi(this.state.tanggalFilterAkhir);
-        }
-      );
-    } else {
-      const formattedDate = dayjsDate.format("YYYY-MM-DD");
-
-      this.setState(
-        {
-          tanggal: selectedDate,
-          tanggalFilterAkhir: formattedDate,
-        },
-        () => {
-          console.log("awal", this.state.tanggalFilterMulai);
-          console.log("akhir", this.state.tanggalFilterAkhir);
-
-          this.getRegistrasi(formattedDate);
-        }
-      );
-    }
-
-    // Update the state with the formatted date
   };
 
   handleTab = (newValue) => {
     this.setState({ value: newValue });
   };
+
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    this.setState({ isProses: true });
+    // buat nama file foto
+    const nama = this.state.nama;
+    const imageUrl = nama.toLowerCase().replace(/\s+/g, "-");
+
+    try {
+      const imgRef = ref(dbImage, `dokters/${imageUrl}`);
+      await uploadBytes(imgRef, this.state.foto);
+
+      const urlFoto = await getDownloadURL(imgRef);
+
+      const newDoctor = {
+        nama: this.state.nama,
+        tanggal_lahir: this.state.tanggalLahir,
+        jenis_kelamin: this.state.jenis_kelamin,
+        pengalaman: this.state.pengalaman,
+        // pengalaman: "10 Tahun",
+        umur: this.state.umur,
+        kontak: this.state.kontak,
+        foto: urlFoto,
+      };
+      await addDoc(collection(db, "dokters"), newDoctor);
+
+      Swal.fire("Berhasil", "Data dokter berhasil ditambah", "success");
+
+      this.setState({
+        nama: "",
+        pengalaman: "",
+        jenisKelamin: "",
+        umur: "",
+        kontak: "",
+        foto: null,
+        isProses: false,
+      });
+    } catch (error) {
+      Swal.fire("Error", "Gagal menambah data", "error");
+      console.error("Error menambahkan data:", error);
+    }
+  };
   render() {
     const options = [
-      { value: "Pria", label: "Pria" },
-      { value: "Wanita", label: "Wanita" },
+      { value: "Laki-laki", label: "Laki-laki" },
+      { value: "Perempuan", label: "Perempuan" },
     ];
     return (
       <div
@@ -109,16 +148,14 @@ class InputTerapis extends React.Component {
           width: "100%",
           height: "100%",
           overflowX: "hidden",
-        }}
-      >
+        }}>
         <div className="flex flex-col gap-0 items-start h-[100%] overflow-y-scroll pb-4 font-medium bg-slate-50 w-[100%]">
           <div className="flex gap-5 self-stretch p-4 w-full  text-center text-stone-900">
             <button
               onClick={() => {
                 window.location.href = "/terapis/";
               }}
-              className="w-auto h-auto "
-            >
+              className="w-auto h-auto ">
               <img
                 loading="lazy"
                 src="https://cdn.builder.io/api/v1/image/assets/TEMP/8b2d02e05b773c962fdd4341539effdff4e46139a4745b83f97d7e9cb10455ed?"
@@ -132,9 +169,21 @@ class InputTerapis extends React.Component {
           <div className="flex flex-col gap-2.5 p-2 w-[100%] h-auto justify-center items-center">
             <div className="flex flex-col gap-2.5 justify-center font-medium text-center text-blue-500 max-w-[328px]">
               <div className=" text-[14px] flex justify-center items-center self-center  text-lg tracking-widest whitespace-nowrap bg-blue-100 h-[120px] rounded-[120px] w-[120px]">
-                JD
+                <img
+                  src={this.state.foto}
+                  alt=""
+                  className="text-[14px] flex justify-center items-center self-center  text-lg tracking-widest whitespace-nowrap bg-blue-100 h-[120px] rounded-[120px] w-[120px]"
+                />
               </div>
-              <div className="gap-0 mt-2.5 w-full  text-[14px] ">Ubah Foto</div>
+              <div className="gap-0 mt-2.5 w-full text-[14px] relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  onChange={this.handleFileChange}
+                />
+                <span className="mr-2">Pilih berkas</span>
+              </div>
             </div>
             <div className="flex flex-col gap-1 justify-center w-[100%] h-auto p-4 text-[14px]">
               <div className="gap-0 w-full text-xs text-stone-900">Nama</div>
@@ -142,19 +191,9 @@ class InputTerapis extends React.Component {
                 type="text"
                 placeholder="Nama"
                 required
-                onChange={this.handleInputChange}
+                value={this.state.nama}
+                onChange={(e) => this.setState({ nama: e.target.value })}
                 name="nama"
-                className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
-              />
-              <div className="gap-0 mt-4 w-full text-xs text-stone-900 text-[14px]">
-                Email
-              </div>
-              <input
-                type="email"
-                placeholder="Email"
-                required
-                name="email"
-                onChange={this.handleInputChange}
                 className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
               />
               <div className="gap-0 mt-4 w-full text-xs text-stone-900 text-[14px]">
@@ -163,7 +202,8 @@ class InputTerapis extends React.Component {
               <input
                 type="text"
                 placeholder="No Telepon"
-                onChange={this.handleInputChange}
+                value={this.state.kontak}
+                onChange={(e) => this.setState({ kontak: e.target.value })}
                 required
                 name="no_hp"
                 className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs rounded border border-solid border-neutral-400 text-neutral-400"
@@ -171,18 +211,16 @@ class InputTerapis extends React.Component {
               <div className="gap-0 mt-4 w-full text-xs text-stone-900 text-[14px]">
                 Tanggal Lahir
               </div>
-              <div className="w[100%] p-0 mt-4">
+              <div className="w-[100%] p-0 mt-4">
                 <LocalizationProvider
                   dateAdapter={AdapterDayjs}
-                  className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
-                  adapterLocale="en-gb"
-                >
+                  className="text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
+                  adapterLocale="en-gb">
                   <DatePicker
-                    name="tanggal"
-                    className=" text-[14px] border-solid border-neutral-400 bg-white w-[100%] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
+                    className="text-[14px] border-solid border-neutral-400 bg-white w-[100%] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
                     locale="id"
-                    value={this.state.tanggal}
-                    onChange={this.handleDateChange}
+                    value={this.state.tanggalLahir}
+                    onChange={this.hitungUmur}
                     inputFormat="DD/MM/YYYY"
                   />
                 </LocalizationProvider>{" "}
@@ -197,8 +235,7 @@ class InputTerapis extends React.Component {
                       xmlns="http://www.w3.org/2000/svg"
                       width="16"
                       height="16"
-                      viewBox="0 0 24 24"
-                    >
+                      viewBox="0 0 24 24">
                       <path
                         fill="#29a7d1"
                         d="M18.39 14.56C16.71 13.7 14.53 13 12 13s-4.71.7-6.39 1.56A2.97 2.97 0 0 0 4 17.22V20h16v-2.78c0-1.12-.61-2.15-1.61-2.66M12 12c2.21 0 4-1.79 4-4V4.5c0-.83-.67-1.5-1.5-1.5c-.52 0-.98.27-1.25.67c-.27-.4-.73-.67-1.25-.67s-.98.27-1.25.67c-.27-.4-.73-.67-1.25-.67C8.67 3 8 3.67 8 4.5V8c0 2.21 1.79 4 4 4"
@@ -207,7 +244,19 @@ class InputTerapis extends React.Component {
                     <Select
                       options={options}
                       name="kelamin"
-                      placeholder="Pilih jenis Kelamin"
+                      placeholder={`Pilih jenis Kelamin ${
+                        this.state.jenis_kelamin
+                          ? `- ${this.state.jenis_kelamin}`
+                          : ""
+                      }`}
+                      onChange={async (selectedOption) => {
+                        await new Promise((resolve) => {
+                          this.setState(
+                            { jenis_kelamin: selectedOption.value },
+                            resolve
+                          );
+                        });
+                      }}
                       classNames={{
                         menuButton: ({ isDisabled }) =>
                           `text-[15px] flex text-sm text-slate-400 w-[100%] bg-white rounded shadow-sm transition-all duration-300 focus:outline-none ${
@@ -234,8 +283,22 @@ class InputTerapis extends React.Component {
                 type="text"
                 placeholder="Umur"
                 name="alamat"
+                value={this.state.umur}
+                onChange={(e) => this.setState({ umur: e.target.value })}
                 readOnly
                 className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
+              />
+              <div className="gap-0 mt-4 w-full text-xs text-stone-900 text-[14px]">
+                Pengalaman
+              </div>
+              <input
+                type="text"
+                placeholder="Pengalaman"
+                value={this.state.pengalaman}
+                onChange={(e) => this.setState({ pengalaman: e.target.value })}
+                required
+                name="no_hp"
+                className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs rounded border border-solid border-neutral-400 text-neutral-400"
               />
               <div className="gap-0 mt-5 w-full text-xs text-stone-900 text-[14px]">
                 Alamat Lengkap
@@ -243,7 +306,8 @@ class InputTerapis extends React.Component {
               <input
                 type="textarea"
                 placeholder="Alamat"
-                onChange={this.handleInputChange}
+                value={this.state.alamat}
+                onChange={(e) => this.setState({ alamat: e.target.value })}
                 required
                 name="alamat"
                 className="justify-center text-[14px] px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
@@ -252,7 +316,11 @@ class InputTerapis extends React.Component {
                 Maks 100 Karaketer
               </div>
             </div>
-            <button className="justify-center p-2 w-full text-base text-center text-white bg-blue-500 rounded-lg max-w-[320px]">
+            <button
+              className="justify-center p-2 w-full text-base text-center text-white bg-blue-500 rounded-lg max-w-[320px]"
+              disabled={this.state.isProses}
+              type="submit"
+              onClick={this.handleSubmit}>
               Simpan
             </button>
           </div>
