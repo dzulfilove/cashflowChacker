@@ -4,32 +4,42 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Select from "react-tailwindcss-select";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, dbImage } from "../config/Firebase";
-import { addDoc, collection } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import Swal from "sweetalert2";
-class InputTerapis extends React.Component {
+import withRouter from "../withRouter";
+import { deleteObject, ref } from "firebase/storage";
+class UpdateTerapis extends React.Component {
   constructor(props) {
     super(props);
+    const { id } = this.props.params;
     this.state = {
-      alamat: "",
-      email: "",
-      id: null,
+      id: id,
+      dokter: {},
       nama: null,
-      jenis_kelamin: null,
-      pengalaman: null,
-      umur: null,
-      foto: null,
-      fotoDisplay: null,
-      kontak: null,
-      tanggalLahir: null,
-      value: "hadir",
-      // tanggal: dayjs().locale("id"),
-      isProses: false,
-      imgSementara: "",
+      kontak: "",
+      tanggalLahir: "",
+      jenis_kelamin: "",
+      umur: "",
+      pengalaman: "",
+      alamat: "",
     };
   }
-  componentDidMount() {}
+
+  async componentDidMount() {
+    await this.getDokter();
+    await this.setNilaiState();
+  }
+
   formatTanggal = () => {
     const today = dayjs().locale("id"); // Gunakan dayjs() tanpa argumen untuk mendapatkan tanggal hari ini
     const formattedDate = today.format("YYYY-MM-DD");
@@ -59,6 +69,7 @@ class InputTerapis extends React.Component {
   hitungUmur = async (selectedDate) => {
     const tanggalLahir = new Date(selectedDate);
     const tahunSekarang = new Date().getFullYear();
+    const dokter = this.state.dokter;
     try {
       const tanggalLahirObj = new Date(tanggalLahir);
       const tahunLahir = tanggalLahirObj.getFullYear();
@@ -89,59 +100,138 @@ class InputTerapis extends React.Component {
     }
   };
 
-  handleTab = (newValue) => {
-    this.setState({ value: newValue });
+  getDokter = async () => {
+    const { id } = this.state;
+
+    try {
+      const { id } = this.state;
+
+      // Membuat referensi dokter berdasarkan ID
+      const dokterRef = doc(db, "dokters", id);
+
+      // Mendapatkan dokumen dokter berdasarkan referensi
+      const dokterDoc = await getDoc(dokterRef);
+      const dokterData = await dokterDoc.data();
+
+      await new Promise((resolve) => {
+        this.setState({ dokter: dokterData }, resolve);
+      });
+    } catch (error) {
+      console.error("Error fetching dokter:", error);
+      throw error;
+    }
+  };
+
+  setNilaiState = async () => {
+    const { dokter } = this.state;
+
+    this.setState({
+      nama: dokter.nama,
+      kontak: dokter.kontak,
+      jenis_kelamin: dokter.jenis_kelamin,
+      umur: dokter.umur,
+      pengalaman: dokter.pengalaman,
+      alamat: dokter.alamat,
+    });
   };
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    this.setState({ isProses: true });
-    // buat nama file foto
-    const nama = this.state.nama;
-    const imageUrl = nama.toLowerCase().replace(/\s+/g, "-");
+    const {
+      id,
+      nama,
+      kontak,
+      tanggalLahir,
+      jenis_kelamin,
+      umur,
+      pengalaman,
+      alamat,
+    } = this.state;
 
     try {
-      const imgRef = ref(dbImage, `dokters/${imageUrl}`);
-      await uploadBytes(imgRef, this.state.foto);
-
-      const urlFoto = await getDownloadURL(imgRef);
-
-      const newDoctor = {
-        nama: this.state.nama,
-        tanggal_lahir: this.state.tanggalLahir,
-        jenis_kelamin: this.state.jenis_kelamin,
-        pengalaman: this.state.pengalaman,
-        // pengalaman: "10 Tahun",
-        umur: this.state.umur,
-        kontak: this.state.kontak,
-        foto: urlFoto,
+      const updateData = {
+        nama: nama,
+        kontak: kontak,
+        tanggal_lahir: tanggalLahir,
+        jenis_kelamin: jenis_kelamin,
+        umur: umur,
+        pengalaman: pengalaman,
+        alamat: alamat,
       };
-      await addDoc(collection(db, "dokters"), newDoctor);
 
-      Swal.fire("Berhasil", "Data dokter berhasil ditambah", "success");
-
-      this.setState({
-        nama: "",
-        pengalaman: "",
-        jenisKelamin: "",
-        umur: "",
-        kontak: "",
-        tanggalLahir: "",
-        foto: null,
-        fotoDisplay: "",
-        alamat: "",
-        isProses: false,
-      });
+      console.log(updateData);
+      await updateDoc(doc(db, "dokters", id), updateData);
+      Swal.fire("Berhasil", "Data dokter berhasil diperbarui", "success");
+      window.location.href = "/terapis";
     } catch (error) {
-      Swal.fire("Error", "Gagal menambah data", "error");
-      console.error("Error menambahkan data:", error);
+      console.error("Gagal karena: ", error);
+      Swal.fire("Error", "Gagal memperbarui data dokter", "error");
     }
   };
+
+  handleDelete = async () => {
+    const { id } = this.state;
+    try {
+      const result = await Swal.fire({
+        title: "Yakin ingin menghapus?",
+        text: "Data tidak akan kembali setelah dihapus",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Hapus",
+        cancelButtonText: "Batal",
+      });
+
+      if (result.isConfirmed === true) {
+        const doctorRef = doc(db, "dokters", id);
+        const doctorSnapshot = await getDoc(doctorRef);
+        const doctorData = doctorSnapshot.data();
+
+        // Dapatkan URL gambar dari dokumen
+        const imageUrl = doctorData.foto;
+
+        // Hapus file gambar dari Firebase Storage
+        const fileRef = ref(dbImage, imageUrl);
+        await deleteObject(fileRef);
+
+        // Hapus dokumen dari koleksi Firestore
+        await deleteDoc(doctorRef);
+        await deleteDoc(doc(db, "dokters", id));
+
+        // Hapus dokumen dari koleksi kehadirans yang memiliki reference ke dokter
+        const kehadiransRef = collection(db, "kehadirans");
+        const kehadiransQuery = query(
+          kehadiransRef,
+          where("dokter_ref", "==", doctorRef)
+        );
+        const kehadiransSnapshot = await getDocs(kehadiransQuery);
+        kehadiransSnapshot.forEach((doc) => {
+          deleteDoc(doc.ref);
+        });
+
+        // Delete each matching document in the kehadirans collection
+        kehadiransSnapshot.forEach(async (doc) => {
+          await deleteDoc(doc.ref);
+        });
+
+        Swal.fire("Berhasil", "Data dokter berhasil dihapus", "success");
+        window.location.href = "/terapis";
+      }
+    } catch (error) {
+      console.error("Error menghapus data:", error);
+      // Tampilkan notifikasi error menggunakan SweetAlert
+      Swal.fire("Error", "Gagal menghapus data dokter", "error");
+    }
+  };
+
   render() {
     const options = [
       { value: "Laki-laki", label: "Laki-laki" },
       { value: "Perempuan", label: "Perempuan" },
     ];
+
+    const { dokter } = this.state;
     return (
       <div
         style={{
@@ -173,7 +263,7 @@ class InputTerapis extends React.Component {
             <div className="flex flex-col gap-2.5 justify-center font-medium text-center text-blue-500 max-w-[328px]">
               <div className=" text-[14px] flex justify-center items-center self-center  text-lg tracking-widest whitespace-nowrap bg-blue-100 h-[120px] rounded-[120px] w-[120px]">
                 <img
-                  src={this.state.fotoDisplay}
+                  src={dokter.foto}
                   alt=""
                   className="text-[14px] flex justify-center items-center self-center  text-lg tracking-widest whitespace-nowrap bg-blue-100 h-[120px] rounded-[120px] w-[120px]"
                 />
@@ -195,9 +285,11 @@ class InputTerapis extends React.Component {
                 placeholder="Nama"
                 required
                 value={this.state.nama}
-                onChange={(e) => this.setState({ nama: e.target.value })}
+                onChange={(e) => {
+                  this.setState({ nama: e.target.value });
+                }}
                 name="nama"
-                className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
+                className="text-[14px] justify-center px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
               />
               <div className="gap-0 mt-4 w-full text-xs text-stone-900 text-[14px]">
                 No. Telepon
@@ -206,7 +298,9 @@ class InputTerapis extends React.Component {
                 type="text"
                 placeholder="No Telepon"
                 value={this.state.kontak}
-                onChange={(e) => this.setState({ kontak: e.target.value })}
+                onChange={(e) => {
+                  this.setState({ kontak: e.target.value });
+                }}
                 required
                 name="no_hp"
                 className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs rounded border border-solid border-neutral-400 text-neutral-400"
@@ -298,7 +392,9 @@ class InputTerapis extends React.Component {
                 type="text"
                 placeholder="Pengalaman"
                 value={this.state.pengalaman}
-                onChange={(e) => this.setState({ pengalaman: e.target.value })}
+                onChange={(e) => {
+                  this.setState({ pengalaman: e.target.value });
+                }}
                 required
                 name="no_hp"
                 className=" text-[14px] justify-center px-4 py-4 mt-2.5 text-xs rounded border border-solid border-neutral-400 text-neutral-400"
@@ -310,7 +406,9 @@ class InputTerapis extends React.Component {
                 type="textarea"
                 placeholder="Alamat"
                 value={this.state.alamat}
-                onChange={(e) => this.setState({ alamat: e.target.value })}
+                onChange={(e) => {
+                  this.setState({ alamat: e.target.value });
+                }}
                 required
                 name="alamat"
                 className="justify-center text-[14px] px-4 py-4 mt-2.5 text-xs whitespace-nowrap rounded border border-solid border-neutral-400 text-neutral-400"
@@ -324,7 +422,15 @@ class InputTerapis extends React.Component {
               disabled={this.state.isProses}
               type="submit"
               onClick={this.handleSubmit}>
-              Simpan
+              Update
+            </button>
+
+            <button
+              className="justify-center p-2 w-full text-base text-center text-white bg-red-500 rounded-lg max-w-[320px]"
+              disabled={this.state.isProses}
+              type="submit"
+              onClick={this.handleDelete}>
+              Hapus Data Terapis
             </button>
           </div>
         </div>
@@ -333,4 +439,4 @@ class InputTerapis extends React.Component {
   }
 }
 
-export default InputTerapis;
+export default withRouter(UpdateTerapis);

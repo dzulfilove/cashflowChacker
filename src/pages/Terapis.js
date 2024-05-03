@@ -9,20 +9,18 @@ import {
   deleteDoc,
   updateDoc,
   doc,
+  query,
+  where,
 } from "firebase/firestore";
-import {
-  getDownloadURL,
-  ref,
-  uploadBytes,
-  deleteObject,
-} from "firebase/storage";
+import { Link } from "react-router-dom";
 
 class Terapis extends React.Component {
   constructor(props) {
     super(props);
-    console.log(props);
     this.state = {
       dokters: [],
+      kehadirans: [],
+      hadir: [],
       id: null,
       nama: null,
       jenis_kelamin: null,
@@ -31,11 +29,14 @@ class Terapis extends React.Component {
       foto: null,
       kontak: null,
       value: "hadir",
+      isHadir: true,
     };
   }
 
-  componentDidMount = () => {
-    this.getAllDokter();
+  componentDidMount = async () => {
+    await this.getAllDokter();
+    await this.getAllKehadiran();
+    await this.getAllHadir();
   };
 
   getAllDokter = async () => {
@@ -51,16 +52,126 @@ class Terapis extends React.Component {
       await new Promise((resolve) => {
         this.setState({ dokters: dokterList }, resolve);
       });
-      console.log(this.state.dokters);
     } catch (error) {
       console.error("Error fetching dokter data:", error);
       throw error;
     }
   };
 
-  handleTab = (newValue) => {
-    this.setState({ value: newValue });
+  getAllKehadiran = async () => {
+    try {
+      const kehadiranCollection = collection(db, "kehadirans");
+      const querySnapshot = await getDocs(kehadiranCollection);
+
+      const kehadiranList = [];
+      for (const doc of querySnapshot.docs) {
+        const kehadiranData = doc.data();
+
+        // Mendapatkan nama dokter dari referensi dokter_ref
+        const dokterDoc = await getDoc(kehadiranData.dokter_ref);
+        const foto = dokterDoc.data().foto;
+        const namaDokter = dokterDoc.data().nama;
+        const jenisKelamin = dokterDoc.data().jenis_kelamin;
+        const pengalaman = dokterDoc.data().pengalaman;
+        const umur = dokterDoc.data().umur;
+
+        kehadiranList.push({
+          id: doc.id,
+          foto: foto,
+          nama: namaDokter,
+          jenis_kelamin: jenisKelamin,
+          pengalaman: pengalaman,
+          umur: umur,
+          is_hadir: kehadiranData.is_hadir,
+        });
+      }
+
+      await new Promise((resolve) => {
+        this.setState({ kehadirans: kehadiranList }, resolve);
+      });
+    } catch (error) {
+      console.error("Error fetching kehadiran:", error);
+      throw error;
+    }
   };
+
+  getAllHadir = async () => {
+    const filteredArray = this.state.kehadirans.filter(
+      (item) => item.is_hadir == true
+    );
+
+    await new Promise((resolve) => {
+      this.setState({ hadir: filteredArray }, resolve);
+    });
+  };
+
+  handleTab = async (newValue) => {
+    await new Promise((resolve) => {
+      this.setState({ value: newValue }, resolve);
+    });
+
+    const { value } = this.state;
+    if (value != "hadir") {
+      await new Promise((resolve) => {
+        this.setState({ isHadir: false }, resolve);
+      });
+    } else {
+      await new Promise((resolve) => {
+        this.setState({ isHadir: true }, resolve);
+      });
+    }
+
+    const filteredArray = this.state.kehadirans.filter(
+      (item) => item.is_hadir === this.state.isHadir
+    );
+
+    await new Promise((resolve) => {
+      this.setState({ hadir: filteredArray }, resolve);
+    });
+  };
+
+  handlePresensi = async (isHadir, dokter) => {
+    try {
+      const currentDate = new Date();
+
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const day = String(currentDate.getDate()).padStart(2, "0"); //
+
+      const formattedDate = `${year}-${month}-${day}`;
+
+      const dokterRef = doc(db, "dokters", dokter.id);
+      const kehadiranQuerySnapshot = await getDocs(
+        query(
+          collection(db, "kehadirans"),
+          where("dokter_ref", "==", dokterRef),
+          where("tanggal", "==", formattedDate)
+        )
+      );
+
+      if (!kehadiranQuerySnapshot.empty) {
+        const kehadiranDoc = kehadiranQuerySnapshot.docs[0];
+        await updateDoc(kehadiranDoc.ref, { is_hadir: isHadir });
+        console.log("berhasil update kehadiran");
+      } else {
+        const dataKehadiran = {
+          dokter_ref: dokterRef,
+          is_hadir: isHadir,
+          tanggal: formattedDate,
+        };
+        await addDoc(collection(db, "kehadirans"), dataKehadiran);
+        console.log("berhasil tambah kehadiran");
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error("gagal hadir", error);
+    }
+  };
+
+  handleEdit = () => {
+    console.log("Hello World");
+  };
+
   render() {
     return (
       <div
@@ -97,7 +208,7 @@ class Terapis extends React.Component {
               />
             </div>
           </div>
-          <div className="flex flex-col w-[100%] h-[100%] justify-start items-center mb-4 overflow-y-scroll p-3 ">
+          <div className="flex flex-col w-[100%] h-[100%] justify-start items-center mb-4 overflow-y-scroll p-3">
             <Tabs
               id="controlled-tab-example"
               activeKey={this.state.value}
@@ -110,7 +221,9 @@ class Terapis extends React.Component {
                       {/* Looping semua data terapis */}
                       {this.state.dokters.map((dokter) => (
                         <div className="flex flex-col justify-center self-center p-4 mt-1 w-full bg-white rounded-xl shadow-sm">
-                          <div className="flex gap-2.5 justify-center">
+                          <Link
+                            to={dokter.id}
+                            className="flex gap-2.5 justify-center">
                             <img
                               loading="lazy"
                               src={dokter.foto}
@@ -171,12 +284,20 @@ class Terapis extends React.Component {
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </Link>
                           <div className="flex gap-4 mt-4 text-sm text-center whitespace-nowrap">
-                            <button className="flex-1 w-12 p-2 justify-center text-white bg-red-500 rounded-lg border border-solid">
+                            <button
+                              className="flex-1 w-12 p-2 justify-center text-white bg-red-500 rounded-lg border border-solid"
+                              onClick={(e) => {
+                                this.handlePresensi(false, dokter);
+                              }}>
                               Absen
                             </button>
-                            <button className="flex-1 w-12 p-2 justify-center text-white bg-blue-500 rounded-lg items-center">
+                            <button
+                              className="flex-1 w-12 p-2 justify-center text-white bg-blue-500 rounded-lg items-center"
+                              onClick={(e) => {
+                                this.handlePresensi(true, dokter);
+                              }}>
                               Hadir
                             </button>
                           </div>
@@ -189,72 +310,78 @@ class Terapis extends React.Component {
               <Tab eventKey="hadir" title="Hadir">
                 {this.state.value == "hadir" && (
                   <>
-                    {/* Disini looping data terapis */}
                     <div className="flex flex-col w-100 h-[25rem] justify-start items-center p-3 gap-3 overflow-y-scroll">
-                      <div className="flex flex-col justify-center self-center p-4 mt-1 w-full bg-white rounded-xl shadow-sm">
-                        <div className="flex gap-2.5 justify-center">
-                          <img
-                            loading="lazy"
-                            srcSet="https://res.cloudinary.com/dk0z4ums3/image/upload/v1688972403/attached_image/pilihan-karir-non-klinis-untuk-dokter-di-indonesia-0-alomedika.jpg"
-                            className="shrink-0 my-auto aspect-[0.79] w-[110px] h-[90px] bg-cover object-cover"
-                          />
-                          <div className="flex flex-col my-auto items-start ">
-                            <div className="text-sm font-medium text-black flex w-100 justify-start items-center gap-1">
-                              dr. Kureha Yasmin
-                            </div>
-
-                            <div className="flex flex-col flex-1 text-black text-xs mt-3 gap-2">
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 20 20">
-                                  <path
-                                    fill="#29a7d1"
-                                    d="M10 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8m-4.991 9A2 2 0 0 0 3 13c0 1.691.833 2.966 2.135 3.797C6.417 17.614 8.145 18 10 18s3.583-.386 4.865-1.203C16.167 15.967 17 14.69 17 13a2 2 0 0 0-2-2z"
-                                  />
-                                </svg>
-                                <div className="text-gray-600">Wanita</div>
+                      {this.state.hadir.map((item) => (
+                        <div className="flex flex-col justify-center self-center p-4 mt-1 w-full bg-white rounded-xl shadow-sm">
+                          <div className="flex gap-2.5 justify-center">
+                            <img
+                              loading="lazy"
+                              srcSet={item.foto}
+                              className="shrink-0 my-auto aspect-[0.79] w-[110px] h-[90px] bg-cover object-cover"
+                            />
+                            <div className="flex flex-col my-auto items-start ">
+                              <div className="text-sm font-medium text-black flex w-100 justify-start items-center gap-1">
+                                {item.nama}
                               </div>
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24">
-                                  <path
-                                    fill="#29a7d1"
-                                    d="M19 6h-3V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3m-9-1h4v1h-4Zm10 13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5.61L8.68 14A1.19 1.19 0 0 0 9 14h6a1.19 1.19 0 0 0 .32-.05L20 12.39Zm0-7.72L14.84 12H9.16L4 10.28V9a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1Z"
-                                  />
-                                </svg>
-                                <div className="text-grey-600">
-                                  {" "}
-                                  1 Tahun Pengalaman
+
+                              <div className="flex flex-col flex-1 text-black text-xs mt-3 gap-2">
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 20 20">
+                                    <path
+                                      fill="#29a7d1"
+                                      d="M10 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8m-4.991 9A2 2 0 0 0 3 13c0 1.691.833 2.966 2.135 3.797C6.417 17.614 8.145 18 10 18s3.583-.386 4.865-1.203C16.167 15.967 17 14.69 17 13a2 2 0 0 0-2-2z"
+                                    />
+                                  </svg>
+                                  <div className="text-gray-600">
+                                    {item.jenis_kelamin}
+                                  </div>
+                                </div>
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      fill="#29a7d1"
+                                      d="M19 6h-3V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3m-9-1h4v1h-4Zm10 13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5.61L8.68 14A1.19 1.19 0 0 0 9 14h6a1.19 1.19 0 0 0 .32-.05L20 12.39Zm0-7.72L14.84 12H9.16L4 10.28V9a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1Z"
+                                    />
+                                  </svg>
+                                  <div className="text-grey-600">
+                                    {" "}
+                                    {item.pengalaman} Pengalaman
+                                  </div>
+                                </div>
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 16 16">
+                                    <g fill="#29a7d1">
+                                      <path d="M5 8a2 2 0 1 0 0-4a2 2 0 0 0 0 4m4-2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5M9 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 9 8m1 2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5" />
+                                      <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM1 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8.96q.04-.245.04-.5C9 10.567 7.21 9 5 9c-2.086 0-3.8 1.398-3.984 3.181A1 1 0 0 1 1 12z" />
+                                    </g>
+                                  </svg>
+                                  <div className="text-grey-600">
+                                    {" "}
+                                    {item.umur} tahun
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 16 16">
-                                  <g fill="#29a7d1">
-                                    <path d="M5 8a2 2 0 1 0 0-4a2 2 0 0 0 0 4m4-2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5M9 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 9 8m1 2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5" />
-                                    <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM1 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8.96q.04-.245.04-.5C9 10.567 7.21 9 5 9c-2.086 0-3.8 1.398-3.984 3.181A1 1 0 0 1 1 12z" />
-                                  </g>
-                                </svg>
-                                <div className="text-grey-600"> 25 tahun</div>
-                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 mt-4 text-sm text-center whitespace-nowrap">
+                            <div className="flex-1 w-12 p-2 justify-center text-green-500 bg-green-100 border border-solid border-green-500 rounded-lg items-center">
+                              Hadir
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-4 mt-4 text-sm text-center whitespace-nowrap">
-                          <div className="flex-1 w-12 p-2 justify-center text-green-500 bg-green-100 border border-solid border-green-500 rounded-lg items-center">
-                            Hadir
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </>
                 )}
@@ -263,70 +390,77 @@ class Terapis extends React.Component {
                 {this.state.value == "absen" && (
                   <>
                     <div className="flex flex-col w-100 h-[25rem] justify-start items-center p-3 gap-3 overflow-y-scroll">
-                      <div className="flex flex-col justify-center self-center p-4 mt-1 w-full bg-white rounded-xl shadow-sm">
-                        <div className="flex gap-2.5 justify-center">
-                          <img
-                            loading="lazy"
-                            srcSet="https://res.cloudinary.com/dk0z4ums3/image/upload/v1688972403/attached_image/pilihan-karir-non-klinis-untuk-dokter-di-indonesia-0-alomedika.jpg"
-                            className="shrink-0 my-auto aspect-[0.79] w-[110px] h-[90px] bg-cover object-cover"
-                          />
-                          <div className="flex flex-col my-auto items-start ">
-                            <div className="text-sm font-medium text-black flex w-100 justify-start items-center gap-1">
-                              dr. Kureha Yasmin
-                            </div>
-
-                            <div className="flex flex-col flex-1 text-black text-xs mt-3 gap-2">
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 20 20">
-                                  <path
-                                    fill="#29a7d1"
-                                    d="M10 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8m-4.991 9A2 2 0 0 0 3 13c0 1.691.833 2.966 2.135 3.797C6.417 17.614 8.145 18 10 18s3.583-.386 4.865-1.203C16.167 15.967 17 14.69 17 13a2 2 0 0 0-2-2z"
-                                  />
-                                </svg>
-                                <div className="text-gray-600">Wanita</div>
+                      {this.state.hadir.map((item) => (
+                        <div className="flex flex-col justify-center self-center p-4 mt-1 w-full bg-white rounded-xl shadow-sm">
+                          <div className="flex gap-2.5 justify-center">
+                            <img
+                              loading="lazy"
+                              srcSet={item.foto}
+                              className="shrink-0 my-auto aspect-[0.79] w-[110px] h-[90px] bg-cover object-cover"
+                            />
+                            <div className="flex flex-col my-auto items-start ">
+                              <div className="text-sm font-medium text-black flex w-100 justify-start items-center gap-1">
+                                {item.nama}
                               </div>
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24">
-                                  <path
-                                    fill="#29a7d1"
-                                    d="M19 6h-3V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3m-9-1h4v1h-4Zm10 13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5.61L8.68 14A1.19 1.19 0 0 0 9 14h6a1.19 1.19 0 0 0 .32-.05L20 12.39Zm0-7.72L14.84 12H9.16L4 10.28V9a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1Z"
-                                  />
-                                </svg>
-                                <div className="text-grey-600">
-                                  {" "}
-                                  1 Tahun Pengalaman
+
+                              <div className="flex flex-col flex-1 text-black text-xs mt-3 gap-2">
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 20 20">
+                                    <path
+                                      fill="#29a7d1"
+                                      d="M10 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8m-4.991 9A2 2 0 0 0 3 13c0 1.691.833 2.966 2.135 3.797C6.417 17.614 8.145 18 10 18s3.583-.386 4.865-1.203C16.167 15.967 17 14.69 17 13a2 2 0 0 0-2-2z"
+                                    />
+                                  </svg>
+                                  <div className="text-gray-600">
+                                    {item.jenis_kelamin}
+                                  </div>
+                                </div>
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      fill="#29a7d1"
+                                      d="M19 6h-3V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3m-9-1h4v1h-4Zm10 13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5.61L8.68 14A1.19 1.19 0 0 0 9 14h6a1.19 1.19 0 0 0 .32-.05L20 12.39Zm0-7.72L14.84 12H9.16L4 10.28V9a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1Z"
+                                    />
+                                  </svg>
+                                  <div className="text-grey-600">
+                                    {" "}
+                                    {item.pengalaman} Pengalaman
+                                  </div>
+                                </div>
+                                <div className="flex whitespace-nowrap justify-start gap-4">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 16 16">
+                                    <g fill="#29a7d1">
+                                      <path d="M5 8a2 2 0 1 0 0-4a2 2 0 0 0 0 4m4-2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5M9 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 9 8m1 2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5" />
+                                      <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM1 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8.96q.04-.245.04-.5C9 10.567 7.21 9 5 9c-2.086 0-3.8 1.398-3.984 3.181A1 1 0 0 1 1 12z" />
+                                    </g>
+                                  </svg>
+                                  <div className="text-grey-600">
+                                    {" "}
+                                    {item.umur} tahun
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex whitespace-nowrap justify-start gap-4">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 16 16">
-                                  <g fill="#29a7d1">
-                                    <path d="M5 8a2 2 0 1 0 0-4a2 2 0 0 0 0 4m4-2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5M9 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 9 8m1 2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5" />
-                                    <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM1 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8.96q.04-.245.04-.5C9 10.567 7.21 9 5 9c-2.086 0-3.8 1.398-3.984 3.181A1 1 0 0 1 1 12z" />
-                                  </g>
-                                </svg>
-                                <div className="text-grey-600"> 25 tahun</div>
-                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 mt-4 text-sm text-center whitespace-nowrap">
+                            <div className="flex-1 w-12 p-2 justify-center text-red-500 bg-red-100 border border-solid border-red-500 rounded-lg items-center">
+                              Absen
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-4 mt-4 text-sm text-center whitespace-nowrap">
-                          <div className="flex-1 w-12 p-2 justify-center text-red-500 bg-red-100 border border-solid border-red-500 rounded-lg items-center">
-                            Absen
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </>
                 )}
