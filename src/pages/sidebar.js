@@ -1,9 +1,3 @@
-import logo from "./logo.svg";
-import "./App.css";
-import HomePage from "./pages/Home";
-
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Loading from "./components/loading";
 import React, { useEffect, useState } from "react";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { MdOutlineDashboard } from "react-icons/md";
@@ -20,11 +14,12 @@ import Select from "react-tailwindcss-select";
 import { DatePicker } from "@mui/x-date-pickers";
 import Swal from "sweetalert2";
 
-import Dashboard from "./pages/dashboard";
-const App = () => {
+import DataTable from "../components/table";
+
+const SidebarMenu = () => {
   const menus = [
-    { name: "Statistik", link: "terapis", icon: AiOutlineAreaChart },
-    { name: "Dashboard", link: "", icon: MdOutlineDashboard },
+    { name: "Statistik", link: "statistik", icon: AiOutlineAreaChart },
+    { name: "Dashboard", link: "dashboard", icon: MdOutlineDashboard },
   ];
   const [open, setOpen] = useState(true);
   const [menu, setMenu] = useState("dashboard");
@@ -85,7 +80,9 @@ const App = () => {
     }
   };
   return (
-    <section className={`flex w-full gap-6 bg-transparent`}>
+    <section
+      className={`flex ${open ? "w-[15rem]" : "w-[6rem]"} gap-6 bg-transparent`}
+    >
       <div
         className={`bg-blue-800 min-h-screen pl-8 ${
           open ? "w-[15rem]" : "w-[6rem]"
@@ -141,7 +138,7 @@ const App = () => {
           {menus?.map((menu, i) => (
             <button
               onClick={() => {
-                window.location.href = `/${menu.link}`;
+                handleMenu(menu);
               }}
               key={i}
               className={` ${
@@ -170,18 +167,9 @@ const App = () => {
           ))}
         </div>
       </div>
-      <div className=" mt-8 text-gray-900 font-semibold w-full flex flex-col justify-start items-center ">
-        <Router>
-          <div className="h-[100vh] w-[100%] overflow-y-scroll p-0 m-0">
-            <Routes>
-              <Route path="/load" element={<Loading />} />
-              <Route path="/" element={<Dashboard />} />
-            </Routes>
-          </div>
-        </Router>
-      </div>
+      <div className=" mt-8 text-gray-900 font-semibold w-full flex flex-col justify-start items-center "></div>
     </section>
   );
 };
 
-export default App;
+export default SidebarMenu;
