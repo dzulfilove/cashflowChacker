@@ -19,11 +19,18 @@ import TextField from "@mui/material/TextField";
 import Select from "react-tailwindcss-select";
 import { DatePicker } from "@mui/x-date-pickers";
 import Swal from "sweetalert2";
-
+import { IoMdExit } from "react-icons/io";
 import Dashboard from "./pages/dashboard";
+import RegistartionForm from "./pages/auth";
 const App = () => {
+  const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const menus = [
-    { name: "Statistik", link: "terapis", icon: AiOutlineAreaChart },
+    { name: "Statistik", link: "", icon: AiOutlineAreaChart },
+    { name: "Dashboard", link: "", icon: MdOutlineDashboard },
+    { name: "Logout", link: "", icon: IoMdExit },
+  ];
+  const menusMain = [
+    { name: "Statistik", link: "", icon: AiOutlineAreaChart },
     { name: "Dashboard", link: "", icon: MdOutlineDashboard },
   ];
   const [open, setOpen] = useState(true);
@@ -62,6 +69,11 @@ const App = () => {
     setTitle(name.name);
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("userID");
+    sessionStorage.removeItem("userEmail");
+  };
   const handleFilterTanggal = (name, value) => {
     const dayjsDate = dayjs(value);
 
@@ -138,44 +150,88 @@ const App = () => {
           Menu
         </div>
         <div className="mt-4 flex flex-col gap-4 relative text-blue-100">
-          {menus?.map((menu, i) => (
-            <button
-              onClick={() => {
-                window.location.href = `/${menu.link}`;
-              }}
-              key={i}
-              className={` ${
-                menu?.margin && "mt-5"
-              } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
-            >
-              <div>{React.createElement(menu?.icon, { size: "20" })}</div>
-              <h2
-                style={{
-                  transitionDelay: `${i + 3}00ms`,
-                }}
-                className={`whitespace-pre duration-500 ${
-                  !open && "opacity-0 translate-x-28 overflow-hidden"
-                }`}
-              >
-                {menu?.name}
-              </h2>
-              <h2
-                className={`${
-                  open && "hidden"
-                } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
-              >
-                {menu?.name}
-              </h2>
-            </button>
-          ))}
+          {isLoggedIn ? (
+            <>
+              {menus?.map((menu, i) => (
+                <button
+                  onClick={() => {
+                    window.location.href = `/${menu.link}`;
+                  }}
+                  key={i}
+                  className={` ${
+                    menu?.margin && "mt-5"
+                  } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+                >
+                  <div>{React.createElement(menu?.icon, { size: "20" })}</div>
+                  <h2
+                    style={{
+                      transitionDelay: `${i + 3}00ms`,
+                    }}
+                    className={`whitespace-pre duration-500 ${
+                      !open && "opacity-0 translate-x-28 overflow-hidden"
+                    }`}
+                  >
+                    {menu?.name}
+                  </h2>
+                  <h2
+                    className={`${
+                      open && "hidden"
+                    } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                  >
+                    {menu?.name}
+                  </h2>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {menusMain?.map((menu, i) => (
+                <button
+                  onClick={() => {
+                    window.location.href = `/${menu.link}`;
+                  }}
+                  key={i}
+                  className={` ${
+                    menu?.margin && "mt-5"
+                  } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+                >
+                  <div>{React.createElement(menu?.icon, { size: "20" })}</div>
+                  <h2
+                    style={{
+                      transitionDelay: `${i + 3}00ms`,
+                    }}
+                    className={`whitespace-pre duration-500 ${
+                      !open && "opacity-0 translate-x-28 overflow-hidden"
+                    }`}
+                  >
+                    {menu?.name}
+                  </h2>
+                  <h2
+                    className={`${
+                      open && "hidden"
+                    } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                  >
+                    {menu?.name}
+                  </h2>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
       <div className=" mt-8 text-gray-900 font-semibold w-full flex flex-col justify-start items-center ">
         <Router>
           <div className="h-[100vh] w-[100%] overflow-y-scroll p-0 m-0">
             <Routes>
-              <Route path="/load" element={<Loading />} />
-              <Route path="/" element={<Dashboard />} />
+              {isLoggedIn ? (
+                <>
+                  <Route path="/" element={<Dashboard />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/" element={<RegistartionForm />} />
+                </>
+              )}
             </Routes>
           </div>
         </Router>

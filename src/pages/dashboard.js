@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { MdOutlineDashboard } from "react-icons/md";
 
 import { AiOutlineAreaChart } from "react-icons/ai";
 import { FaRegUser } from "react-icons/fa";
-
+import { useReactToPrint } from "react-to-print";
 import { Link, NavLink } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -18,6 +18,7 @@ import Swal from "sweetalert2";
 import DataTable from "../components/table";
 import { urlAPI } from "../config/database";
 import axios from "axios";
+import Print from "../components/print";
 
 const Dashboard = () => {
   const menus = [
@@ -26,17 +27,20 @@ const Dashboard = () => {
   ];
   const [open, setOpen] = useState(true);
   const [menu, setMenu] = useState("dashboard");
-  const [tanggalAwal, setTanggalAwal] = useState(
-    dayjs("2024-05-01").locale("id")
+  const [tanggalAwal, setTanggalAwal] = useState(dayjs().locale("id"));
+  const [tanggalAwalString, setTanggalAwalString] = useState(
+    dayjs().locale("id").format("YYYY-MM-DD")
   );
-  const [tanggalAwalString, setTanggalAwalString] = useState("2024-05-01");
 
   const [tanggalAkhirString, setTanggalAkhirString] = useState(
     dayjs().locale("id").format("YYYY-MM-DD")
   );
   const [tanggalAkhir, setTanggalAkhir] = useState(dayjs().locale("id"));
-
-  const [dataFilter, setDataFilter] = useState([]);
+  const [tanggal, setTanggal] = useState(
+    dayjs().locale("id").format("YYYY-MM-DD")
+  );
+  const [jam, setJam] = useState(dayjs().locale("id").format("HH:mm"));
+  const [isCek, setisCek] = useState(false);
   const [dataAkun, setDataAkun] = useState([]);
 
   const [dataDetailTrips, setDataDetailTrips] = useState([]);
@@ -50,10 +54,12 @@ const Dashboard = () => {
   const [dataCashflow2, setDataCashflow2] = useState([]);
   const [dataCashflow3, setDataCashflow3] = useState([]);
   const [nilaiCashflow, setNilaiCashflow] = useState(0);
-  const [nilaiBalance, setNilaiBalance] = useState({});
+  const [dataKas, setdataKas] = useState({});
 
   const [title, setTitle] = useState("Dashboard");
   const [idAkun, setIdAkun] = useState("");
+  const user = sessionStorage.getItem("userEmail");
+  const contentToPrint = useRef(null);
 
   useEffect(() => {
     getAllAcount();
@@ -80,9 +86,9 @@ const Dashboard = () => {
 
     if (name == "tanggalAwal") {
       if (isTanggal == false) {
-        setIsTanggal(true);
-        setTanggalAkhirString(formattedDate);
+        tanggalMulai = formattedDate;
         setTanggalAkhir(value);
+        setTanggalAkhirString(formattedDate);
       }
       tanggalMulai = formattedDate;
       setTanggalAwal(value);
@@ -129,24 +135,71 @@ const Dashboard = () => {
 
     return false;
   };
+  const formatTanggal = (tanggal) => {
+    const hari = dayjs(tanggal).locale("id").format("dddd");
+    const bulan = dayjs(tanggal).locale("id").format("MMMM");
+    const hasil =
+      hari +
+      " , " +
+      tanggal.substring(8, 10) +
+      " " +
+      bulan +
+      " " +
+      tanggal.substring(0, 4);
+    console.log("tanggal", dayjs(tanggal).locale("id").format("MMMM"));
+
+    return hasil;
+  };
+  const handleHistory = async (data, selisih, username) => {
+    const url = urlAPI + "/insert-history";
+    try {
+      console.log("cek");
+
+      const response = await axios.post(
+        url,
+        {
+          user: username,
+          tanggalJurnalAwal: tanggalAwalString,
+          tanggalJurnalAkhir: tanggalAkhirString,
+          namaAkun: idAkun.value,
+          nominalKasManual: nilaiCashflow,
+          nominalKasSistem: data.jml,
+          selisih: selisih,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      console.log("berhasil");
+    } catch (error) {
+      console.log(error);
+    }
+  };
   const handleCashflow = async (e) => {
     e.preventDefault();
     const cek = isAnyStateEmpty();
     if (cek == false) {
       const url = urlAPI + "/arus-kas";
+
       try {
+        console.log("cek");
+
         const response = await axios.post(
           url,
           {
             tanggalAwal: tanggalAwalString,
             tanggalAkhir: tanggalAkhirString,
             accountId: idAkun.value,
+            username: user,
           },
           {
             headers: { "Content-Type": "application/json" },
           }
         );
         const data = response.data;
+        console.log(data);
+
         // Membuat objek untuk menyimpan array berdasarkan nama
         const groupedData = data.data.reduce((acc, item) => {
           if (!acc[item.k01]) {
@@ -157,11 +210,86 @@ const Dashboard = () => {
         }, {});
 
         const result = Object.values(groupedData);
-        console.log(tanggalAwalString, tanggalAkhirString, idAkun);
+        const hour = dayjs().locale("id").format("HH:mm");
+        const dataCash = result[2];
+        const dataSetor = data.dataSetor;
+        const selisih = nilaiCashflow - dataCash[0].jml;
+        let ket = "";
+
+        if (nilaiCashflow < dataCash[0].jml) {
+          ket = "Kurang";
+        } else {
+          ket = "Lebih";
+        }
+
+        let ketSetor = "";
+
+        if (dataSetor.yangDisetor < dataSetor.sisaModal) {
+          ketSetor = "Kurang";
+        } else {
+          ketSetor = "Lebih";
+        }
+        if (nilaiCashflow !== dataCash[0].jml) {
+          const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n\n<b>Nama Pengecek :  </b>${
+            data.namaUser
+          }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+            tanggal
+          )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+            tanggalAkhirString != tanggalAkhirString
+              ? formatTanggal(tanggalAwalString) +
+                " - " +
+                formatTanggal(tanggalAkhirString)
+              : formatTanggal(tanggalAwalString)
+          }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
+            data.namaPerusahaan
+          }  \n<b>Nama Akun Kas : ${
+            idAkun.label
+          } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
+            nilaiCashflow
+          )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
+            dataCash[0].jml
+          )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
+            Math.abs(selisih)
+          )}\n\n`;
+
+          console.log(text);
+          sendMessage(text);
+        }
+        if (dataSetor.yangDisetor !== "Tidak nyetor") {
+          if (dataSetor.yangDisetor !== dataSetor.sisaModal) {
+            const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+              data.namaUser
+            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+              tanggal
+            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+              tanggalAkhirString != tanggalAkhirString
+                ? formatTanggal(tanggalAwalString) +
+                  " - " +
+                  formatTanggal(tanggalAkhirString)
+                : formatTanggal(tanggalAwalString)
+            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
+              data.namaPerusahaan
+            } \n<b>Nama Akun Setor : ${
+              dataSetor.namaAkunSetor
+            } \n<b>Nilai setor : ${formatRupiah(
+              dataSetor.yangDisetor
+            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
+              dataSetor.sisaModal
+            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
+              Math.abs(dataSetor.yangDisetor - dataSetor.sisaModal)
+            )}\n\n`;
+
+            console.log(text);
+            sendMessage(text);
+          }
+        }
+        handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
         console.log(result);
         setDataCashflow1(result[0]);
         setDataCashflow2(result[1]);
         setDataCashflow3(result[2]);
+        setdataKas(data);
+        setisCek(true);
       } catch (error) {
         console.log(error);
       }
@@ -176,6 +304,50 @@ const Dashboard = () => {
       maximumFractionDigits: 0,
     });
   };
+
+  const sendMessage = async (text, topic) => {
+    try {
+      const response = await fetch(
+        "https://api.telegram.org/bot6823587684:AAE4Ya6Lpwbfw8QxFYec6xAqWkBYeP53MLQ/sendMessage",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: "-1001812360373",
+            text: text,
+            message_thread_id: "19535",
+            parse_mode: "html",
+          }),
+        }
+      );
+
+      // Cek apakah respons dari fetch adalah OK (status code 200)
+      if (response.ok) {
+        console.log("berhasilllllll");
+      } else {
+        console.log("gagalllllll");
+      }
+    } catch (error) {
+      // Tangani kesalahan yang terjadi selama fetch
+      console.error("Error:", error);
+      // alert("Terjadi kesalahan. Silakan coba lagi.");
+    }
+  };
+
+  const cetak = () => {
+    handlePrint(null, () => {
+      if (contentToPrint.current) {
+        return contentToPrint.current;
+      }
+
+      return null; // Handle the case where content isn't ready
+    });
+  };
+  const handlePrint = useReactToPrint({
+    content: () => contentToPrint.current,
+  });
   console.log(dataCashflow3, "akun");
   return (
     <section className="flex gap-6 ">
@@ -277,35 +449,47 @@ const Dashboard = () => {
                   />
                 </LocalizationProvider>
               </div>
-
-              <div
-                className="w-[10rem] flex justify-center items-center text-sm
+              {isTanggal && (
+                <>
+                  <div
+                    className="w-[10rem] flex justify-center items-center text-sm
                 font-medium "
-              >
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="id"
-                >
-                  <DatePicker
-                    name="tanggalAwal"
-                    locale="id"
-                    className="bg-white text-sm"
-                    label="Tanggal Akhir"
-                    value={tanggalAkhir}
-                    onChange={(selectedDate) =>
-                      handleFilterTanggal("tanggalAkhir", selectedDate)
-                    }
-                    inputFormat="DD/MM/YYYY"
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        placeholder="dd/mm/yyyy"
-                        fullWidth
+                  >
+                    <LocalizationProvider
+                      dateAdapter={AdapterDayjs}
+                      adapterLocale="id"
+                    >
+                      <DatePicker
+                        name="tanggalAwal"
+                        locale="id"
+                        className="bg-white text-sm"
+                        label="Tanggal Akhir"
+                        value={tanggalAkhir}
+                        onChange={(selectedDate) =>
+                          handleFilterTanggal("tanggalAkhir", selectedDate)
+                        }
+                        inputFormat="DD/MM/YYYY"
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="dd/mm/yyyy"
+                            fullWidth
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </LocalizationProvider>
-              </div>
+                    </LocalizationProvider>
+                  </div>
+                </>
+              )}
+              <label className="inline-flex items-center border border-blue-500 rounded-md p-2">
+                <input
+                  type="checkbox"
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                  checked={isTanggal}
+                  onChange={() => setIsTanggal(!isTanggal)}
+                />
+                <span className="ml-2 text-gray-700">Rentang Tanggal ?</span>
+              </label>
 
               <button
                 onClick={handleCashflow}
@@ -313,7 +497,10 @@ const Dashboard = () => {
               >
                 Cek Cashflow
               </button>
-              <button className="w-[10rem] font-medium h-[3rem] shadow-lg hover:bg-white hover:border-blue-500 border transition hover:text-blue-500 border-transparent flex justify-center items-center bg-blue-500 text-white rounded-xl">
+              <button
+                onClick={handlePrint}
+                className="w-[10rem] font-medium h-[3rem] shadow-lg hover:bg-white hover:border-blue-500 border transition hover:text-blue-500 border-transparent flex justify-center items-center bg-blue-500 text-white rounded-xl"
+              >
                 Export Cashflow
               </button>
             </div>
@@ -365,8 +552,10 @@ const Dashboard = () => {
                 Total Cashflow Sistem
               </h5>
               <h3 className="text-gray-700 text-2xl font-semibold">
-                {dataCashflow3.length > 0 && (
+                {dataCashflow3.length > 0 ? (
                   <>{formatRupiah(dataCashflow3[0].jml)}</>
+                ) : (
+                  <>{formatRupiah(0)}</>
                 )}
               </h3>
             </div>
@@ -403,17 +592,130 @@ const Dashboard = () => {
                 Total Selisih
               </h5>
               <h3 className="text-gray-700 text-2xl font-semibold">
-                {dataCashflow3.length > 0 && (
+                {dataCashflow3.length > 0 ? (
                   <>{formatRupiah(nilaiCashflow - dataCashflow3[0].jml)}</>
+                ) : (
+                  <>{formatRupiah(0)}</>
                 )}
               </h3>
             </div>
           </div>
-          {/* <DataTable
-            data-aos="fade-up"
-            data-aos-delay="150"
-            handleDetail={handleMenu}
-          /> */}
+          {isCek == true && (
+            <>
+              <div ref={contentToPrint}>
+                <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
+                  <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
+                    <h5 className="font-medium text-base">
+                      {dataKas.namaPerusahaan}
+                    </h5>
+                    <h5 className="text-base font-normal">REKAP ARUS KAS</h5>
+                  </div>
+                  <div className="w-[100%] flex justify-start items-start flex-col gap-1 mb-6">
+                    <div className="font-medium text-sm flex w-full justify-start items-center">
+                      <div className="flex justify-between w-[7rem]">
+                        Jenis Kas
+                      </div>
+                      <div className="flex justify-between w-[20rem]">
+                        : {idAkun.label}
+                      </div>
+                    </div>
+                    <div className="font-medium text-sm flex w-full justify-start items-center">
+                      <div className="flex justify-between w-[7rem]">
+                        Periode
+                      </div>
+                      <div className="flex justify-between w-[20rem]">
+                        :{" "}
+                        {isTanggal == false
+                          ? formatTanggal(tanggalAwalString)
+                          : formatTanggal(tanggalAwalString) +
+                            " - " +
+                            formatTanggal(tanggalAkhirString)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-[100%] flex justify-start items-start flex-col  border border-slate-500 ">
+                    <div className="w-[100%] flex justify-start items-start ">
+                      <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
+                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                          Nama Jurnal
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                            Saldo Awal
+                          </div>
+                          {dataCashflow1.map((data) => (
+                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                              {data.k03}
+                            </div>
+                          ))}
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                            Perubahan Kas
+                          </div>
+                          {dataCashflow2.map((data) => (
+                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                              {data.k03}
+                            </div>
+                          ))}
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                            Saldo Akhir
+                          </div>
+                          {dataCashflow3.map((data) => (
+                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                              {data.k03}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="w-[30%] flex flex-col justify-center items-center border border-slate-500">
+                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                          Jumlah
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                          {dataCashflow1.map((data) => (
+                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                              {formatRupiah(data.jml)}
+                            </div>
+                          ))}
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                          {dataCashflow2.map((data) => (
+                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                              {formatRupiah(data.jml)}
+                            </div>
+                          ))}
+                        </div>
+                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                          {dataCashflow3.map((data) => (
+                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                              {formatRupiah(data.jml)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="font-medium text-sm flex w-full justify-end  items-center mt-6">
+                    <div className="font-medium text-sm flex flex-col justify-end  items-center mt-6">
+                      <div className="flex justify-center w-[15rem]">
+                        Dicetak Pada : {formatTanggal(tanggal)}
+                      </div>
+                      <div className="flex justify-between ">Petugas</div>
+                      <div className="flex justify-between h-[5rem] items-end">
+                        {dataKas.namaUser}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
