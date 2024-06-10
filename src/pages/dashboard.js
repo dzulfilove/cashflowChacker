@@ -229,31 +229,33 @@ const Dashboard = () => {
         } else {
           ketSetor = "Lebih";
         }
-        if (nilaiCashflow !== dataCash[0].jml) {
-          const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n\n<b>Nama Pengecek :  </b>${
-            data.namaUser
-          }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-            tanggal
-          )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-            tanggalAkhirString != tanggalAkhirString
-              ? formatTanggal(tanggalAwalString) +
-                " - " +
-                formatTanggal(tanggalAkhirString)
-              : formatTanggal(tanggalAwalString)
-          }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
-            data.namaPerusahaan
-          }  \n<b>Nama Akun Kas : ${
-            idAkun.label
-          } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
-            nilaiCashflow
-          )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
-            dataCash[0].jml
-          )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
-            Math.abs(selisih)
-          )}\n\n`;
+        if (Math.abs(selisih) > 0.5) {
+          if (nilaiCashflow !== dataCash[0].jml) {
+            const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n\n<b>Nama Pengecek :  </b>${
+              data.namaUser
+            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+              tanggal
+            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+              tanggalAkhirString != tanggalAkhirString
+                ? formatTanggal(tanggalAwalString) +
+                  " - " +
+                  formatTanggal(tanggalAkhirString)
+                : formatTanggal(tanggalAwalString)
+            }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
+              data.namaPerusahaan
+            }  \n<b>Nama Akun Kas : ${
+              idAkun.label
+            } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
+              nilaiCashflow
+            )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
+              dataCash[0].jml
+            )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
+              Math.abs(selisih)
+            )}\n\n`;
 
-          console.log(text);
-          sendMessage(text);
+            console.log(text);
+            sendMessage(text);
+          }
         }
         if (dataSetor.yangDisetor !== "Tidak nyetor") {
           if (dataSetor.yangDisetor !== dataSetor.sisaModal) {
@@ -304,7 +306,20 @@ const Dashboard = () => {
       maximumFractionDigits: 0,
     });
   };
+  const formatRupiah2 = (angka) => {
+    const nilai = parseFloat(angka);
+    const isNegative = nilai < 0;
+    const absoluteValue = Math.abs(nilai);
 
+    const formattedValue = absoluteValue.toLocaleString("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+
+    return isNegative ? `(${formattedValue})` : formattedValue;
+  };
   const sendMessage = async (text, topic) => {
     try {
       const response = await fetch(
@@ -579,9 +594,13 @@ const Dashboard = () => {
                     {nilaiCashflow !== dataCashflow3[0].jml && (
                       <>
                         <div className="bg-red-100 border w-[10rem] border-red-500 rounded-xl flex justify-center items-center p-2 text-base text-red-600">
-                          {nilaiCashflow < dataCashflow3[0].jml
+                          {parseInt(nilaiCashflow) <
+                          parseInt(dataCashflow3[0].jml)
                             ? "Kurang"
-                            : "Lebih"}
+                            : parseInt(nilaiCashflow) >
+                              parseInt(dataCashflow3[0].jml)
+                            ? "Lebih"
+                            : "Sama"}
                         </div>
                       </>
                     )}
@@ -686,7 +705,7 @@ const Dashboard = () => {
                           <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
                           {dataCashflow2.map((data) => (
                             <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah(data.jml)}
+                              {formatRupiah2(data.jml)}
                             </div>
                           ))}
                         </div>
