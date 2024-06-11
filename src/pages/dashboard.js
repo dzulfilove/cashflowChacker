@@ -25,7 +25,7 @@ const Dashboard = () => {
     { name: "Statistik", link: "statistik", icon: AiOutlineAreaChart },
     { name: "Dashboard", link: "dashboard", icon: MdOutlineDashboard },
   ];
-  const [open, setOpen] = useState(true);
+  const [cek, setIsCek] = useState(false);
   const [menu, setMenu] = useState("dashboard");
   const [tanggalAwal, setTanggalAwal] = useState(dayjs().locale("id"));
   const [tanggalAwalString, setTanggalAwalString] = useState(
@@ -512,12 +512,16 @@ const Dashboard = () => {
               >
                 Cek Cashflow
               </button>
-              <button
-                onClick={handlePrint}
-                className="w-[10rem] font-medium h-[3rem] shadow-lg hover:bg-white hover:border-blue-500 border transition hover:text-blue-500 border-transparent flex justify-center items-center bg-blue-500 text-white rounded-xl"
-              >
-                Export Cashflow
-              </button>
+              {isCek == true && (
+                <>
+                  <button
+                    onClick={handlePrint}
+                    className="w-[10rem] font-medium h-[3rem] shadow-lg hover:bg-white hover:border-blue-500 border transition hover:text-blue-500 border-transparent flex justify-center items-center bg-blue-500 text-white rounded-xl"
+                  >
+                    Export Cashflow
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <div

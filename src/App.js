@@ -25,9 +25,9 @@ import RegistartionForm from "./pages/auth";
 const App = () => {
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const menus = [
-    { name: "Statistik", link: "", icon: AiOutlineAreaChart },
+    // { name: "Statistik", link: "", icon: AiOutlineAreaChart },
     { name: "Dashboard", link: "", icon: MdOutlineDashboard },
-    { name: "Logout", link: "", icon: IoMdExit },
+    { name: "Logout", link: "", icon: IoMdExit, handle: "handleLogout" },
   ];
   const menusMain = [
     { name: "Statistik", link: "", icon: AiOutlineAreaChart },
@@ -73,6 +73,7 @@ const App = () => {
     sessionStorage.removeItem("isLoggedIn");
     sessionStorage.removeItem("userID");
     sessionStorage.removeItem("userEmail");
+    window.location.href = "/";
   };
   const handleFilterTanggal = (name, value) => {
     const dayjsDate = dayjs(value);
@@ -150,71 +151,94 @@ const App = () => {
           Menu
         </div>
         <div className="mt-4 flex flex-col gap-4 relative text-blue-100">
-          {isLoggedIn ? (
+          {!isLoggedIn ? (
             <>
-              {menus?.map((menu, i) => (
-                <button
-                  onClick={() => {
-                    window.location.href = `/${menu.link}`;
+              <button
+                onClick={() => {
+                  window.location.href = `/`;
+                }}
+                className={` ${
+                  menu?.margin && "mt-5"
+                } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+              >
+                <div>
+                  {React.createElement(MdOutlineDashboard, { size: "20" })}
+                </div>
+                <h2
+                  style={{
+                    transitionDelay: `${1 + 3}00ms`,
                   }}
-                  key={i}
-                  className={` ${
-                    menu?.margin && "mt-5"
-                  } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+                  className={`whitespace-pre duration-500 ${
+                    !open && "opacity-0 translate-x-28 overflow-hidden"
+                  }`}
                 >
-                  <div>{React.createElement(menu?.icon, { size: "20" })}</div>
-                  <h2
-                    style={{
-                      transitionDelay: `${i + 3}00ms`,
-                    }}
-                    className={`whitespace-pre duration-500 ${
-                      !open && "opacity-0 translate-x-28 overflow-hidden"
-                    }`}
-                  >
-                    {menu?.name}
-                  </h2>
-                  <h2
-                    className={`${
-                      open && "hidden"
-                    } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
-                  >
-                    {menu?.name}
-                  </h2>
-                </button>
-              ))}
+                  Dashboard
+                </h2>
+                <h2
+                  className={`${
+                    open && "hidden"
+                  } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                >
+                  Dashboard
+                </h2>
+              </button>
             </>
           ) : (
             <>
-              {menusMain?.map((menu, i) => (
-                <button
-                  onClick={() => {
-                    window.location.href = `/${menu.link}`;
+              <button
+                onClick={() => {
+                  window.location.href = `/`;
+                }}
+                className={` ${
+                  menu?.margin && "mt-5"
+                } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+              >
+                <div>
+                  {React.createElement(MdOutlineDashboard, { size: "20" })}
+                </div>
+                <h2
+                  style={{
+                    transitionDelay: `${1 + 3}00ms`,
                   }}
-                  key={i}
-                  className={` ${
-                    menu?.margin && "mt-5"
-                  } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+                  className={`whitespace-pre duration-500 ${
+                    !open && "opacity-0 translate-x-28 overflow-hidden"
+                  }`}
                 >
-                  <div>{React.createElement(menu?.icon, { size: "20" })}</div>
-                  <h2
-                    style={{
-                      transitionDelay: `${i + 3}00ms`,
-                    }}
-                    className={`whitespace-pre duration-500 ${
-                      !open && "opacity-0 translate-x-28 overflow-hidden"
-                    }`}
-                  >
-                    {menu?.name}
-                  </h2>
-                  <h2
-                    className={`${
-                      open && "hidden"
-                    } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
-                  >
-                    {menu?.name}
-                  </h2>
-                </button>
-              ))}
+                  Dashboard
+                </h2>
+                <h2
+                  className={`${
+                    open && "hidden"
+                  } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                >
+                  Dashboard
+                </h2>
+              </button>
+              <button
+                onClick={handleLogout}
+                className={` ${
+                  menu?.margin && "mt-5"
+                } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+              >
+                <div>{React.createElement(IoMdExit, { size: "20" })}</div>
+                <h2
+                  style={{
+                    transitionDelay: `${2 + 3}00ms`,
+                  }}
+                  className={`whitespace-pre duration-500 ${
+                    !open && "opacity-0 translate-x-28 overflow-hidden"
+                  }`}
+                >
+                  Logout
+                </h2>
+                <h2
+                  className={`${
+                    open && "hidden"
+                  } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                >
+                  Logout
+                </h2>
+              </button>
             </>
           )}
         </div>
