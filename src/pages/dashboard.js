@@ -259,12 +259,12 @@ const Dashboard = () => {
         }
         if (dataSetor.yangDisetor !== "Tidak nyetor") {
           if (dataSetor.yangDisetor !== dataSetor.sisaModal) {
-            const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+            const text = `\n\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
               data.namaUser
             }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
               tanggal
             )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAkhirString != tanggalAkhirString
+              tanggalAwalString != tanggalAkhirString
                 ? formatTanggal(tanggalAwalString) +
                   " - " +
                   formatTanggal(tanggalAkhirString)
