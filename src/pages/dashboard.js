@@ -14,12 +14,14 @@ import TextField from "@mui/material/TextField";
 import Select from "react-tailwindcss-select";
 import { DatePicker } from "@mui/x-date-pickers";
 import Swal from "sweetalert2";
-
+import htmlToPdfmake from "html-to-pdfmake";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
 import DataTable from "../components/table";
 import { urlAPI } from "../config/database";
 import axios from "axios";
 import Print from "../components/print";
-
+import html2canvas from "html2canvas";
 const Dashboard = () => {
   const menus = [
     { name: "Statistik", link: "statistik", icon: AiOutlineAreaChart },
@@ -53,11 +55,16 @@ const Dashboard = () => {
   const [dataCashflow1, setDataCashflow1] = useState([]);
   const [dataCashflow2, setDataCashflow2] = useState([]);
   const [dataCashflow3, setDataCashflow3] = useState([]);
+  const [dataDetailAwal, setDataDetailAwal] = useState([]);
+  const [dataDetailMasuk, setDataDetailMasuk] = useState([]);
+  const [dataDetailAkhir, setDataDetailAkhir] = useState([]);
+  const [dataDetailKeluar, setDataDetailKeluar] = useState([]);
   const [nilaiCashflow, setNilaiCashflow] = useState(0);
   const [dataKas, setdataKas] = useState({});
 
   const [title, setTitle] = useState("Dashboard");
   const [idAkun, setIdAkun] = useState("");
+  const [kas, setKas] = useState("");
   const user = sessionStorage.getItem("userEmail");
   const contentToPrint = useRef(null);
 
@@ -170,8 +177,58 @@ const Dashboard = () => {
           headers: { "Content-Type": "application/json" },
         }
       );
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  const handleDetailKas = async () => {
+    const url = urlAPI + "/detail-arus-kas";
+    try {
+      console.log("cek");
 
-      console.log("berhasil");
+      const response = await axios.post(
+        url,
+        {
+          tanggalAwal: tanggalAwalString,
+          tanggalAkhir: tanggalAkhirString,
+          accountId: idAkun.value,
+          username: user,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const data = response.data;
+      if (data.status == "Success") {
+        // Membuat objek untuk menyimpan array berdasarkan nama
+        const groupedData = data.dataDetailCashflow.reduce((acc, item) => {
+          if (!acc[item.k01]) {
+            acc[item.k01] = [];
+          }
+          acc[item.k01].push(item);
+          return acc;
+        }, {});
+
+        const result = Object.values(groupedData);
+        const dataDetail = result[1];
+        // Membuat objek untuk menyimpan array berdasarkan nama
+        const groupedDataDetail = dataDetail.reduce((acc, item) => {
+          if (!acc[item.k03]) {
+            acc[item.k03] = [];
+          }
+          acc[item.k03].push(item);
+          return acc;
+        }, {});
+
+        const resultDetail = Object.values(groupedDataDetail);
+        console.log(resultDetail, "berhasil");
+
+        setDataDetailMasuk(resultDetail[0]);
+        setDataDetailKeluar(resultDetail[1]);
+        setDataDetailAwal(result[0]);
+        setDataDetailAkhir(result[2]);
+      }
     } catch (error) {
       console.log(error);
     }
@@ -212,6 +269,7 @@ const Dashboard = () => {
         const result = Object.values(groupedData);
         const hour = dayjs().locale("id").format("HH:mm");
         const dataCash = result[2];
+        const dataModal = result[0];
         const dataSetor = data.dataSetor;
         const selisih = nilaiCashflow - dataCash[0].jml;
         let ket = "";
@@ -224,14 +282,60 @@ const Dashboard = () => {
 
         let ketSetor = "";
 
-        if (dataSetor.yangDisetor < dataSetor.sisaModal) {
+        if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
           ketSetor = "Kurang";
         } else {
           ketSetor = "Lebih";
         }
+
+        if (dataSetor.yangDisetor !== "Tidak nyetor") {
+          if (dataSetor.modalSeharusnya !== dataSetor.sisaModal) {
+            const text = `\n\n<b> ${
+              data.namaPerusahaan
+            }</b>\n---------------------------------------------------------------------\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+              data.namaUser
+            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+              tanggal
+            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+              tanggalAwalString != tanggalAkhirString
+                ? formatTanggal(tanggalAwalString) +
+                  " - " +
+                  formatTanggal(tanggalAkhirString)
+                : formatTanggal(tanggalAwalString)
+            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
+              data.namaPerusahaan
+            } \n<b>Nama Akun Setor : ${
+              dataSetor.namaAkunSetor
+            } \n<b>Nilai setor : ${formatRupiah(
+              dataSetor.yangDisetor
+            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
+              parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
+            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
+              Math.abs(
+                parseInt(dataSetor.yangDisetor) -
+                  (parseInt(dataModal[0].jml) -
+                    parseInt(dataSetor.modalSeharusnya))
+              )
+            )}\n\n`;
+
+            console.log(result[0]);
+            sendMessage(text);
+          }
+        }
+
+        handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
+        handleDetailKas();
+        console.log(result, "hasil");
+        setDataCashflow1(result[0]);
+        setDataCashflow2(result[1]);
+        setDataCashflow3(result[2]);
+        setdataKas(data);
+        setisCek(true);
         if (Math.abs(selisih) > 0.5) {
           if (nilaiCashflow !== dataCash[0].jml) {
-            const text = `<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n\n<b>Nama Pengecek :  </b>${
+            const text = `\n\n<b> ${
+              data.namaPerusahaan
+            }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
               data.namaUser
             }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
               tanggal
@@ -254,44 +358,9 @@ const Dashboard = () => {
             )}\n\n`;
 
             console.log(text);
-            sendMessage(text);
+            handleSendImage(text);
           }
         }
-        if (dataSetor.yangDisetor !== "Tidak nyetor") {
-          if (dataSetor.yangDisetor !== dataSetor.sisaModal) {
-            const text = `\n\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
-              data.namaUser
-            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-              tanggal
-            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAwalString != tanggalAkhirString
-                ? formatTanggal(tanggalAwalString) +
-                  " - " +
-                  formatTanggal(tanggalAkhirString)
-                : formatTanggal(tanggalAwalString)
-            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
-              data.namaPerusahaan
-            } \n<b>Nama Akun Setor : ${
-              dataSetor.namaAkunSetor
-            } \n<b>Nilai setor : ${formatRupiah(
-              dataSetor.yangDisetor
-            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
-              dataSetor.sisaModal
-            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
-              Math.abs(dataSetor.yangDisetor - dataSetor.sisaModal)
-            )}\n\n`;
-
-            console.log(text);
-            sendMessage(text);
-          }
-        }
-        handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
-        console.log(result);
-        setDataCashflow1(result[0]);
-        setDataCashflow2(result[1]);
-        setDataCashflow3(result[2]);
-        setdataKas(data);
-        setisCek(true);
       } catch (error) {
         console.log(error);
       }
@@ -363,6 +432,81 @@ const Dashboard = () => {
   const handlePrint = useReactToPrint({
     content: () => contentToPrint.current,
   });
+
+  const sendImage = async (text, fotoBlob) => {
+    try {
+      const formData = new FormData();
+      formData.append("chat_id", "-1001812360373"); // Ganti dengan chat ID tujuan
+      formData.append("photo", fotoBlob, "image.png"); // Foto sebagai blob
+      formData.append("caption", text);
+      formData.append("message_thread_id", "19535");
+      formData.append("parse_mode", "html");
+
+      const response = await fetch(
+        "https://api.telegram.org/bot6823587684:AAE4Ya6Lpwbfw8QxFYec6xAqWkBYeP53MLQ/sendPhoto",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (response.ok) {
+        console.log("Image sent successfully");
+        // alert("Image sent successfully!");
+      } else {
+        const errorData = await response.json();
+        console.log("Failed to send image", errorData);
+        alert(`Failed to send image: ${errorData.description}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      // alert("An error occurred. Please try again.");
+    }
+  };
+
+  const handleSendImage = async (text) => {
+    if (!contentToPrint.current) {
+      alert("No content to send!");
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(contentToPrint.current);
+      canvas.toBlob(async (blob) => {
+        await sendImage(text, blob);
+      }, "image/png");
+    } catch (error) {
+      console.error("Error capturing or sending image:", error);
+      alert("Failed to send image.");
+    }
+  };
+
+  const optionKas = [
+    {
+      value: "Rekap",
+      label: "Rekap",
+    },
+    {
+      value: "Detail",
+      label: "Detail",
+    },
+  ];
+
+  function formatTime(dateString) {
+    const date = new Date(dateString);
+
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+
+    hours = hours % 12;
+    hours = hours ? hours : 12; // The hour '0' should be '12'
+    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
+
+    const strTime = `${hours}:${minutesStr} ${ampm}`;
+    return strTime;
+  }
+
   console.log(dataCashflow3, "akun");
   return (
     <section className="flex gap-6 ">
@@ -406,6 +550,32 @@ const Dashboard = () => {
             data-aos="slide-down"
             className="w-[90%] flex justify-start items-center  text-sm font-normal bg-white shadow-md p-4 py-6 rounded-xl gap-6"
           >
+            <div className="w-auto flex z-[999] justify-start gap-3 items-center p-2 border border-slate-400 bg-white rounded-xl">
+              <div className="flex items-center justify-center z-[999] w-[10rem]">
+                <Select
+                  options={optionKas}
+                  name="Lokasi"
+                  placeholder="Pilih Jenis Rekap"
+                  value={kas}
+                  onChange={(data) => {
+                    setKas(data);
+                  }}
+                  classNames={{
+                    menuButton: ({ isDisabled }) =>
+                      `ps-3 text-[15px] flex text-base hover:cursor-pointer z-[999] text-slate-500 w-[100%] rounded-lg  transition-all duration-300 focus:outline-none ${
+                        isDisabled ? "" : " focus:ring focus:ring-blue-500/20"
+                      }`,
+                    menu: "  bg-white absolute w-full bg-slate-50  z-[999] w-[100%] border rounded py-1 mt-1.5 text-base text-gray-700",
+                    listItem: ({ isSelected }) =>
+                      `block transition duration-200 px-2 py-2 cursor-pointer z-[999] select-none truncate rounded-lg ${
+                        isSelected
+                          ? "text-slate-500 bg-slate-50"
+                          : "text-slate-500 hover:bg-blue-100 hover:text-slate-500"
+                      }`,
+                  }}
+                />
+              </div>
+            </div>
             <div className="w-auto flex z-[999] justify-start gap-3 items-center p-2 border border-slate-400 bg-white rounded-xl">
               <div className="flex items-center justify-center z-[999] w-[10rem]">
                 <Select
@@ -623,120 +793,349 @@ const Dashboard = () => {
               </h3>
             </div>
           </div>
+
           {isCek == true && (
             <>
-              <div ref={contentToPrint}>
-                <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
-                  <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
-                    <h5 className="font-medium text-base">
-                      {dataKas.namaPerusahaan}
-                    </h5>
-                    <h5 className="text-base font-normal">REKAP ARUS KAS</h5>
-                  </div>
-                  <div className="w-[100%] flex justify-start items-start flex-col gap-1 mb-6">
-                    <div className="font-medium text-sm flex w-full justify-start items-center">
-                      <div className="flex justify-between w-[7rem]">
-                        Jenis Kas
+              {kas.value == "Rekap" ? (
+                <>
+                  <div ref={contentToPrint}>
+                    <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
+                      <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
+                        <h5 className="font-medium text-base">
+                          {dataKas.namaPerusahaan}
+                        </h5>
+                        <h5 className="text-base font-normal">
+                          REKAP ARUS KAS
+                        </h5>
                       </div>
-                      <div className="flex justify-between w-[20rem]">
-                        : {idAkun.label}
-                      </div>
-                    </div>
-                    <div className="font-medium text-sm flex w-full justify-start items-center">
-                      <div className="flex justify-between w-[7rem]">
-                        Periode
-                      </div>
-                      <div className="flex justify-between w-[20rem]">
-                        :{" "}
-                        {isTanggal == false
-                          ? formatTanggal(tanggalAwalString)
-                          : formatTanggal(tanggalAwalString) +
-                            " - " +
-                            formatTanggal(tanggalAkhirString)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-[100%] flex justify-start items-start flex-col  border border-slate-500 ">
-                    <div className="w-[100%] flex justify-start items-start ">
-                      <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
-                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
-                          Nama Jurnal
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Saldo Awal
+                      <div className="w-[100%] flex justify-start items-start flex-col gap-1 mb-6">
+                        <div className="font-medium text-sm flex w-full justify-start items-center">
+                          <div className="flex justify-between w-[7rem]">
+                            Jenis Kas
                           </div>
-                          {dataCashflow1.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Perubahan Kas
+                          <div className="flex justify-between w-[20rem]">
+                            : {idAkun.label}
                           </div>
-                          {dataCashflow2.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
                         </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Saldo Akhir
+                        <div className="font-medium text-sm flex w-full justify-start items-center">
+                          <div className="flex justify-between w-[7rem]">
+                            Periode
                           </div>
-                          {dataCashflow3.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
+                          <div className="flex justify-between w-[20rem]">
+                            :{" "}
+                            {isTanggal == false
+                              ? formatTanggal(tanggalAwalString)
+                              : formatTanggal(tanggalAwalString) +
+                                " - " +
+                                formatTanggal(tanggalAkhirString)}
+                          </div>
                         </div>
                       </div>
-                      <div className="w-[30%] flex flex-col justify-center items-center border border-slate-500">
-                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
-                          Jumlah
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow1.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah(data.jml)}
+                      <div className="w-[100%] flex justify-start items-start flex-col  border border-slate-500 ">
+                        <div className="w-[100%] flex justify-start items-start ">
+                          <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              Nama Jurnal
                             </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow2.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah2(data.jml)}
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                                Saldo Awal
+                              </div>
+                              {dataCashflow1.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k03}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow3.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah(data.jml)}
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                                Perubahan Kas
+                              </div>
+                              {dataCashflow2.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k03}
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                                Saldo Akhir
+                              </div>
+                              {dataCashflow3.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k03}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="w-[30%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              Jumlah
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                              {dataCashflow1.map((data) => (
+                                <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                                  {formatRupiah(data.jml)}
+                                </div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                              {dataCashflow2.map((data) => (
+                                <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                                  {formatRupiah2(data.jml)}
+                                </div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
+                              {dataCashflow3.map((data) => (
+                                <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
+                                  {formatRupiah(data.jml)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="font-medium text-sm flex w-full justify-end  items-center mt-6">
+                        <div className="font-medium text-sm flex flex-col justify-end  items-center mt-6">
+                          <div className="flex justify-center w-[15rem]">
+                            Dicetak Pada : {formatTanggal(tanggal)}
+                          </div>
+                          <div className="flex justify-between ">Petugas</div>
+                          <div className="flex justify-between h-[5rem] items-end">
+                            {dataKas.namaUser}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="font-medium text-sm flex w-full justify-end  items-center mt-6">
-                    <div className="font-medium text-sm flex flex-col justify-end  items-center mt-6">
-                      <div className="flex justify-center w-[15rem]">
-                        Dicetak Pada : {formatTanggal(tanggal)}
+                </>
+              ) : (
+                <>
+                  <div ref={contentToPrint}>
+                    <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
+                      <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
+                        <h5 className="font-medium text-base">
+                          {dataKas.namaPerusahaan}
+                        </h5>
+                        <h5 className="text-base font-normal">
+                          DETAIL ARUS KAS
+                        </h5>
                       </div>
-                      <div className="flex justify-between ">Petugas</div>
-                      <div className="flex justify-between h-[5rem] items-end">
-                        {dataKas.namaUser}
+                      <div className="w-[100%] flex justify-start items-start flex-col gap-1 mb-6">
+                        <div className="font-medium text-sm flex w-full justify-start items-center">
+                          <div className="flex justify-between w-[7rem]">
+                            Jenis Kas
+                          </div>
+                          <div className="flex justify-between w-[20rem]">
+                            : {idAkun.label}
+                          </div>
+                        </div>
+                        <div className="font-medium text-sm flex w-full justify-start items-center">
+                          <div className="flex justify-between w-[7rem]">
+                            Periode
+                          </div>
+                          <div className="flex justify-between w-[20rem]">
+                            :{" "}
+                            {isTanggal == false
+                              ? formatTanggal(tanggalAwalString)
+                              : formatTanggal(tanggalAwalString) +
+                                " - " +
+                                formatTanggal(tanggalAkhirString)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-[100%] flex justify-start items-start flex-col  border border-slate-500 ">
+                        <div className="w-[100%] flex justify-start items-start ">
+                          <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              No Jurnal
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                                Saldo Awal
+                              </div>
+                              {dataDetailAwal.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal"></div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic">
+                                Perubahan Kas
+                              </div>
+                              <div className="flex pl-8 justify-start items-center py-1 w-full font-medium italic">
+                                Kas Masuk
+                              </div>
+                              {dataDetailMasuk.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k04}
+                                </div>
+                              ))}
+                              <div className="flex pl-8 justify-start items-center py-1 w-full font-medium italic">
+                                Kas Keluar
+                              </div>
+                              {dataDetailKeluar.map((data) => (
+                                <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k04}
+                                </div>
+                              ))}
+                              <div className="flex pl-8 justify-start items-center py-1 w-full font-medium italic"></div>
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex mb-2 justify-start items-center py-1 w-full font-medium italic">
+                                Saldo Akhir
+                              </div>
+                            </div>
+                          </div>
+                          <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              Nama Jurnal
+                            </div>
+
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataDetailAwal.map((data) => (
+                                <div className="mt-2 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k05}
+                                </div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataDetailMasuk.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-14 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {data.k05}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataDetailKeluar.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-5 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {data.k05}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataDetailAkhir.map((data) => (
+                                <div className=" flex justify-start items-center py-1 w-full font-normal">
+                                  {data.k05}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              Jumlah
+                            </div>
+
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataCashflow1.map((data) => (
+                                <div className="mt-2 flex justify-start items-center py-1 w-full font-normal">
+                                  {data.jml}
+                                </div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataDetailMasuk.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-14 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {data.jml}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataDetailKeluar.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-5 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {data.jml}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataCashflow3.map((data) => (
+                                <div className=" flex justify-start items-center py-1 w-full font-normal">
+                                  {data.jml}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="w-[30%] flex flex-col justify-center items-center border border-slate-500">
+                            <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
+                              Waktu
+                            </div>
+
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataDetailAwal.map((data) => (
+                                <div className="mt-2 flex justify-start items-center py-1 w-full font-normal">
+                                  {formatTime(data.k08)}
+                                </div>
+                              ))}
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              {dataDetailMasuk.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-14 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {formatTime(data.k08)}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataDetailKeluar.map((data, i) => (
+                                <div
+                                  className={` ${
+                                    i == 0 ? "mt-5 bg-black" : ""
+                                  }flex justify-start items-center py-1 w-full font-normal`}
+                                >
+                                  {formatTime(data.k08)}
+                                </div>
+                              ))}
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                            </div>
+                            <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
+                              <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
+                              {dataDetailAkhir.map((data) => (
+                                <div className=" flex justify-start items-center py-1 w-full font-normal">
+                                  {formatTime(data.k08)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="font-medium text-sm flex w-full justify-end  items-center mt-6">
+                        <div className="font-medium text-sm flex flex-col justify-end  items-center mt-6">
+                          <div className="flex justify-center w-[15rem]">
+                            Dicetak Pada : {formatTanggal(tanggal)}
+                          </div>
+                          <div className="flex justify-between ">Petugas</div>
+                          <div className="flex justify-between h-[5rem] items-end">
+                            {dataKas.namaUser}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </>
           )}
         </div>

@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useState } from "react";
+import Swal from "sweetalert2";
 import { urlAPI } from "../config/database";
 const RegistartionForm = () => {
   const [username, setusername] = useState("");
@@ -24,12 +25,25 @@ const RegistartionForm = () => {
 
       const data = response.data;
       const user = data.user;
-      sessionStorage.setItem("isLoggedIn", true);
-      sessionStorage.setItem("userEmail", username);
-      window.location.href = "/";
-      console.log(data.user);
-      setData(data.user);
+      if (response.status == "Error") {
+        Swal.fire({
+          title: "Gagal",
+          text: `Gagal Masuk, Harap Cek Lagi Username atau Password`,
+          icon: "error",
+        });
+      } else {
+        sessionStorage.setItem("isLoggedIn", true);
+        sessionStorage.setItem("userEmail", username);
+        window.location.href = "/";
+        console.log(data.user);
+        setData(data.user);
+      }
     } catch (error) {
+      Swal.fire({
+        title: "Gagal",
+        text: `Gagal Masuk, Harap Cek Lagi Koneksi Database Anda`,
+        icon: "error",
+      });
       console.log(error);
     }
   };
