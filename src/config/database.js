@@ -1,1 +1,1 @@
-export const urlAPI = "http://192.168.1.84:5000";
+export const urlAPI = "http://localhost:5000";
