@@ -1041,7 +1041,7 @@ const Dashboard = () => {
                             <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
                               {dataCashflow1.map((data) => (
                                 <div className="mt-2 flex justify-start items-center py-1 w-full font-normal">
-                                  {data.jml}
+                                  {formatRupiah(data.jml)}
                                 </div>
                               ))}
                             </div>
@@ -1052,7 +1052,7 @@ const Dashboard = () => {
                                     i == 0 ? "mt-14 bg-black" : ""
                                   }flex justify-start items-center py-1 w-full font-normal`}
                                 >
-                                  {data.jml}
+                                  {formatRupiah2(data.jml)}
                                 </div>
                               ))}
                               <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
@@ -1062,7 +1062,7 @@ const Dashboard = () => {
                                     i == 0 ? "mt-5 bg-black" : ""
                                   }flex justify-start items-center py-1 w-full font-normal`}
                                 >
-                                  {data.jml}
+                                  {formatRupiah2(data.jml)}
                                 </div>
                               ))}
                               <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
@@ -1071,7 +1071,7 @@ const Dashboard = () => {
                               <div className="flex justify-start items-center py-1 w-full font-medium italic"></div>
                               {dataCashflow3.map((data) => (
                                 <div className=" flex justify-start items-center py-1 w-full font-normal">
-                                  {data.jml}
+                                  {formatRupiah(data.jml)}
                                 </div>
                               ))}
                             </div>
