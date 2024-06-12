@@ -25,7 +25,7 @@ const RegistartionForm = () => {
 
       const data = response.data;
       const user = data.user;
-      if (response.status == "Error") {
+      if (data.status == "Error") {
         Swal.fire({
           title: "Gagal",
           text: `Gagal Masuk, Harap Cek Lagi Username atau Password`,
@@ -35,7 +35,7 @@ const RegistartionForm = () => {
         sessionStorage.setItem("isLoggedIn", true);
         sessionStorage.setItem("userEmail", username);
         window.location.href = "/";
-        console.log(data.user);
+        console.log(data);
         setData(data.user);
       }
     } catch (error) {
