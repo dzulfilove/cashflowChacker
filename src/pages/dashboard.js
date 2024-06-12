@@ -916,7 +916,7 @@ const Dashboard = () => {
               dataDetailAkhir != undefined &&
               dataDetailAkhir != undefined ? (
                 <>
-                  <div ref={contentToPrint}>
+                  <div>
                     <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
                       <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
                         <h5 className="font-medium text-base">
