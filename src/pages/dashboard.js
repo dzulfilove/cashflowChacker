@@ -22,6 +22,7 @@ import { urlAPI } from "../config/database";
 import axios from "axios";
 import Print from "../components/print";
 import html2canvas from "html2canvas";
+import PrintComponent from "../components/print";
 const Dashboard = () => {
   const menus = [
     { name: "Statistik", link: "statistik", icon: AiOutlineAreaChart },
@@ -61,7 +62,7 @@ const Dashboard = () => {
   const [dataDetailKeluar, setDataDetailKeluar] = useState([]);
   const [nilaiCashflow, setNilaiCashflow] = useState(0);
   const [dataKas, setdataKas] = useState({});
-
+  const [isStateSet, setIsStateSet] = useState(false);
   const [title, setTitle] = useState("Dashboard");
   const [idAkun, setIdAkun] = useState("");
   const [kas, setKas] = useState("");
@@ -70,7 +71,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     getAllAcount();
-  }, []);
+    if (isStateSet) {
+      // Panggil handleSendImage atau fungsi lainnya setelah state diset
+      // Lakukan sesuatu di sini
+      setIsStateSet(false); // Reset flag state
+    }
+  }, [isStateSet]);
   const handleMenu = (name) => {
     setMenu(name.link);
     if (name.link == "dashboard") {
@@ -157,6 +163,7 @@ const Dashboard = () => {
 
     return hasil;
   };
+
   const handleHistory = async (data, selisih, username) => {
     const url = urlAPI + "/insert-history";
     try {
@@ -272,6 +279,10 @@ const Dashboard = () => {
         const dataModal = result[0];
         const dataSetor = data.dataSetor;
         const selisih = nilaiCashflow - dataCash[0].jml;
+        const selisihSetor = Math.abs(
+          parseInt(dataSetor.yangDisetor) -
+            (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
+        );
         let ket = "";
 
         if (nilaiCashflow < dataCash[0].jml) {
@@ -289,10 +300,12 @@ const Dashboard = () => {
         }
 
         if (dataSetor.yangDisetor !== "Tidak nyetor") {
-          if (dataSetor.modalSeharusnya !== dataSetor.sisaModal) {
+          if (selisihSetor > 0.5) {
             const text = `\n\n<b> ${
               data.namaPerusahaan
-            }</b>\n---------------------------------------------------------------------\n<b>Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+            }</b>\n--------------------------------------------\n<b>${
+              Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
+            }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
               data.namaUser
             }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
               tanggal
@@ -325,12 +338,19 @@ const Dashboard = () => {
 
         handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
         handleDetailKas();
+
+        await new Promise((resolve) => {
+          setDataCashflow1(result[0]);
+          setDataCashflow2(result[1]);
+          setDataCashflow3(result[2]);
+          setdataKas(data);
+          setisCek(true);
+          setIsStateSet(true); // Update flag state
+          resolve(); // Pastikan promise ini diselesaikan
+        });
+
         console.log(result, "hasil");
-        setDataCashflow1(result[0]);
-        setDataCashflow2(result[1]);
-        setDataCashflow3(result[2]);
-        setdataKas(data);
-        setisCek(true);
+
         if (Math.abs(selisih) > 0.5) {
           if (nilaiCashflow !== dataCash[0].jml) {
             const text = `\n\n<b> ${
@@ -358,7 +378,9 @@ const Dashboard = () => {
             )}\n\n`;
 
             console.log(text);
-            handleSendImage(text);
+            setTimeout(() => {
+              handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
+            }, 0);
           }
         }
       } catch (error) {
@@ -366,6 +388,7 @@ const Dashboard = () => {
       }
     }
   };
+
   const formatRupiah = (angka) => {
     const nilai = parseFloat(angka);
     return nilai.toLocaleString("id-ID", {
@@ -475,6 +498,7 @@ const Dashboard = () => {
       canvas.toBlob(async (blob) => {
         await sendImage(text, blob);
       }, "image/png");
+      alert("image sended");
     } catch (error) {
       console.error("Error capturing or sending image:", error);
       alert("Failed to send image.");
@@ -797,116 +821,16 @@ const Dashboard = () => {
           {kas.value == "Rekap" ? (
             <>
               <div ref={contentToPrint}>
-                <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
-                  <div className="w-[100%] flex justify-start items-start flex-col gap-2 mb-6">
-                    <h5 className="font-medium text-base">
-                      {dataKas.namaPerusahaan}
-                    </h5>
-                    <h5 className="text-base font-normal">REKAP ARUS KAS</h5>
-                  </div>
-                  <div className="w-[100%] flex justify-start items-start flex-col gap-1 mb-6">
-                    <div className="font-medium text-sm flex w-full justify-start items-center">
-                      <div className="flex justify-between w-[7rem]">
-                        Jenis Kas
-                      </div>
-                      <div className="flex justify-between w-[20rem]">
-                        : {idAkun.label}
-                      </div>
-                    </div>
-                    <div className="font-medium text-sm flex w-full justify-start items-center">
-                      <div className="flex justify-between w-[7rem]">
-                        Periode
-                      </div>
-                      <div className="flex justify-between w-[20rem]">
-                        :{" "}
-                        {isTanggal == false
-                          ? formatTanggal(tanggalAwalString)
-                          : formatTanggal(tanggalAwalString) +
-                            " - " +
-                            formatTanggal(tanggalAkhirString)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-[100%] flex justify-start items-start flex-col  border border-slate-500 ">
-                    <div className="w-[100%] flex justify-start items-start ">
-                      <div className="w-[70%] flex flex-col justify-center items-center border border-slate-500">
-                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
-                          Nama Jurnal
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Saldo Awal
-                          </div>
-                          {dataCashflow1.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Perubahan Kas
-                          </div>
-                          {dataCashflow2.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 w-full font-medium italic">
-                            Saldo Akhir
-                          </div>
-                          {dataCashflow3.map((data) => (
-                            <div className="pl-16 flex justify-start items-center py-1 w-full font-normal">
-                              {data.k03}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="w-[30%] flex flex-col justify-center items-center border border-slate-500">
-                        <div className=" w-[100%] px-4 pb-2 flex justify-center items-center text-base border-b border-b-slate-500">
-                          Jumlah
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow1.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah(data.jml)}
-                            </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow2.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah2(data.jml)}
-                            </div>
-                          ))}
-                        </div>
-                        <div className=" w-[100%] px-4 pb-2 flex flex-col justify-center items-center text-sm border-b border-b-slate-500">
-                          <div className="flex justify-start items-center py-1 pb-6 w-full font-medium"></div>
-                          {dataCashflow3.map((data) => (
-                            <div className="pl-16 flex justify-end items-center py-1 w-full font-normal">
-                              {formatRupiah(data.jml)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="font-medium text-sm flex w-full justify-end  items-center mt-6">
-                    <div className="font-medium text-sm flex flex-col justify-end  items-center mt-6">
-                      <div className="flex justify-center w-[15rem]">
-                        Dicetak Pada : {formatTanggal(tanggal)}
-                      </div>
-                      <div className="flex justify-between ">Petugas</div>
-                      <div className="flex justify-between h-[5rem] items-end">
-                        {dataKas.namaUser}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <PrintComponent
+                  dataCashflow1={dataCashflow1}
+                  dataCashflow2={dataCashflow2}
+                  dataCashflow3={dataCashflow3}
+                  tanggal={tanggal}
+                  dataKas={dataKas}
+                  idAkun={idAkun}
+                  tanggalAwalString={tanggalAwalString}
+                  tanggalAkhirString={tanggalAkhirString}
+                />
               </div>
             </>
           ) : (
