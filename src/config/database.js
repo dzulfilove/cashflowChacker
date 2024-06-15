@@ -1,1 +1,1 @@
-export const urlAPI = "http://26.192.81.231:5000";
+export const urlAPI = "http://26.153.78.144:5000";

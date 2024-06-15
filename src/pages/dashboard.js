@@ -351,37 +351,35 @@ const Dashboard = () => {
 
         console.log(result, "hasil");
 
-        if (Math.abs(selisih) > 0.5) {
-          if (nilaiCashflow !== dataCash[0].jml) {
-            const text = `\n\n<b> ${
-              data.namaPerusahaan
-            }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
-              data.namaUser
-            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-              tanggal
-            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAkhirString != tanggalAkhirString
-                ? formatTanggal(tanggalAwalString) +
-                  " - " +
-                  formatTanggal(tanggalAkhirString)
-                : formatTanggal(tanggalAwalString)
-            }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
-              data.namaPerusahaan
-            }  \n<b>Nama Akun Kas : ${
-              idAkun.label
-            } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
-              nilaiCashflow
-            )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
-              dataCash[0].jml
-            )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
-              Math.abs(selisih)
-            )}\n\n`;
+        if (nilaiCashflow !== dataCash[0].jml) {
+          const text = `\n\n<b> ${
+            data.namaPerusahaan
+          }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
+            data.namaUser
+          }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+            tanggal
+          )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+            tanggalAkhirString != tanggalAkhirString
+              ? formatTanggal(tanggalAwalString) +
+                " - " +
+                formatTanggal(tanggalAkhirString)
+              : formatTanggal(tanggalAwalString)
+          }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
+            data.namaPerusahaan
+          }  \n<b>Nama Akun Kas : ${
+            idAkun.label
+          } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
+            nilaiCashflow
+          )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
+            dataCash[0].jml
+          )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
+            Math.abs(selisih)
+          )}\n\n`;
 
-            console.log(text);
-            setTimeout(() => {
-              handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
-            }, 0);
-          }
+          console.log(text);
+          setTimeout(() => {
+            handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
+          }, 0);
         }
       } catch (error) {
         console.log(error);
@@ -422,9 +420,9 @@ const Dashboard = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            chat_id: "-1001812360373",
+            chat_id: "6546310886",
             text: text,
-            message_thread_id: "19535",
+            // message_thread_id: "19535",
             parse_mode: "html",
           }),
         }
@@ -459,10 +457,10 @@ const Dashboard = () => {
   const sendImage = async (text, fotoBlob) => {
     try {
       const formData = new FormData();
-      formData.append("chat_id", "-1001812360373"); // Ganti dengan chat ID tujuan
+      formData.append("chat_id", "6546310886"); // Ganti dengan chat ID tujuan
       formData.append("photo", fotoBlob, "image.png"); // Foto sebagai blob
       formData.append("caption", text);
-      formData.append("message_thread_id", "19535");
+      // formData.append("message_thread_id", "19535");
       formData.append("parse_mode", "html");
 
       const response = await fetch(
