@@ -420,9 +420,10 @@ const Dashboard = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            chat_id: "6546310886",
+            chat_id: "-1001812360373",
+
             text: text,
-            // message_thread_id: "19535",
+            message_thread_id: "19535",
             parse_mode: "html",
           }),
         }
@@ -457,10 +458,10 @@ const Dashboard = () => {
   const sendImage = async (text, fotoBlob) => {
     try {
       const formData = new FormData();
-      formData.append("chat_id", "6546310886"); // Ganti dengan chat ID tujuan
+      formData.append("chat_id", "-1001812360373"); // Ganti dengan chat ID tujuan
       formData.append("photo", fotoBlob, "image.png"); // Foto sebagai blob
       formData.append("caption", text);
-      // formData.append("message_thread_id", "19535");
+      formData.append("message_thread_id", "19535");
       formData.append("parse_mode", "html");
 
       const response = await fetch(
