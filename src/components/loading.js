@@ -4,18 +4,14 @@ import { MutatingDots } from "react-loader-spinner";
 const Loading = () => {
   return (
     <>
-      <div className="w-[100%] h-[100%] flex justify-center items-center flex-col">
-        <MutatingDots
-          visible={true}
-          height="100"
-          width="100"
-          color="#3B82F6"
-          secondaryColor="#3B82F6"
-          radius="12.5"
-          ariaLabel="mutating-dots-loading"
-          wrapperStyle={{}}
-          wrapperClass=""
-        />
+      <div className="w-[100%] h-[100%] mt-20 flex justify-center items-center flex-col gap-10">
+        <div className="typewriter">
+          <div className="slide">
+            <i></i>
+          </div>
+          <div className="paper"></div>
+          <div className="keyboard"></div>
+        </div>
         <p>Mohon Tunggu Sebentar</p>
       </div>
     </>

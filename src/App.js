@@ -1,7 +1,7 @@
 import logo from "./logo.svg";
 import "./App.css";
 import HomePage from "./pages/Home";
-
+import { VscListSelection } from "react-icons/vsc";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Loading from "./components/loading";
 import React, { useEffect, useState } from "react";
@@ -22,6 +22,8 @@ import Swal from "sweetalert2";
 import { IoMdExit } from "react-icons/io";
 import Dashboard from "./pages/dashboard";
 import RegistartionForm from "./pages/auth";
+import History from "./pages/history";
+import DetailHistory from "./pages/detailHistory";
 const App = () => {
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const menus = [
@@ -215,6 +217,35 @@ const App = () => {
                 </h2>
               </button>
               <button
+                onClick={() => {
+                  window.location.href = `/riwayat`;
+                }}
+                className={` ${
+                  menu?.margin && "mt-5"
+                } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+              >
+                <div>
+                  {React.createElement(VscListSelection, { size: "20" })}
+                </div>
+                <h2
+                  style={{
+                    transitionDelay: `${1 + 3}00ms`,
+                  }}
+                  className={`whitespace-pre duration-500 ${
+                    !open && "opacity-0 translate-x-28 overflow-hidden"
+                  }`}
+                >
+                  Riwayat
+                </h2>
+                <h2
+                  className={`${
+                    open && "hidden"
+                  } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                >
+                  Riwayat
+                </h2>
+              </button>
+              <button
                 onClick={handleLogout}
                 className={` ${
                   menu?.margin && "mt-5"
@@ -250,6 +281,8 @@ const App = () => {
               {isLoggedIn ? (
                 <>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/riwayat" element={<History />} />
+                  <Route path="/detail-riwayat" element={<DetailHistory />} />
                 </>
               ) : (
                 <>
