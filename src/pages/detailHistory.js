@@ -1,36 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { MdOutlineDashboard } from "react-icons/md";
-import { VscListSelection } from "react-icons/vsc";
 import { AiOutlineAreaChart } from "react-icons/ai";
-import { FaRegUser } from "react-icons/fa";
+
 import { useReactToPrint } from "react-to-print";
-import { Link, NavLink } from "react-router-dom";
+
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import TextField from "@mui/material/TextField";
-import Select from "react-tailwindcss-select";
-import { DatePicker } from "@mui/x-date-pickers";
+
 import Swal from "sweetalert2";
-import htmlToPdfmake from "html-to-pdfmake";
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-import DataTable from "../components/table";
+
 import { urlAPI } from "../config/database";
 import axios from "axios";
-import Print from "../components/print";
-import html2canvas from "html2canvas";
+
 import PrintComponent from "../components/print";
+import withRouter from "../withRouter";
+import { useParams } from "react-router-dom";
 const DetailHistory = () => {
-  const menus = [
-    { name: "Statistik", link: "statistik", icon: AiOutlineAreaChart },
-    { name: "Dashboard", link: "dashboard", icon: MdOutlineDashboard },
-  ];
-  const [cek, setIsCek] = useState(false);
-  const [menu, setMenu] = useState("dashboard");
-  const [tanggalAwal, setTanggalAwal] = useState(dayjs().locale("id"));
   const [tanggalAwalString, setTanggalAwalString] = useState(
     dayjs().locale("id").format("YYYY-MM-DD")
   );
@@ -38,20 +26,14 @@ const DetailHistory = () => {
   const [tanggalAkhirString, setTanggalAkhirString] = useState(
     dayjs().locale("id").format("YYYY-MM-DD")
   );
-  const [tanggalAkhir, setTanggalAkhir] = useState(dayjs().locale("id"));
+
   const [tanggal, setTanggal] = useState(
     dayjs().locale("id").format("YYYY-MM-DD")
   );
-  const [jam, setJam] = useState(dayjs().locale("id").format("HH:mm"));
-  const [isCek, setisCek] = useState(false);
-  const [dataAkun, setDataAkun] = useState([]);
 
-  const [dataDetailTrips, setDataDetailTrips] = useState([]);
-  const [tripsDisplay, setTripsDisplay] = useState(null);
+  const { id } = useParams();
 
-  const [tripsLength, setTripsLength] = useState(0);
-
-  const [showDetail, setShowDetail] = useState(false);
+  console.log(id);
   const [isTanggal, setIsTanggal] = useState(false);
   const [dataCashflow1, setDataCashflow1] = useState([]);
   const [dataCashflow2, setDataCashflow2] = useState([]);
@@ -70,83 +52,49 @@ const DetailHistory = () => {
   const contentToPrint = useRef(null);
 
   useEffect(() => {
-    getAllAcount();
     if (isStateSet) {
       // Panggil handleSendImage atau fungsi lainnya setelah state diset
       // Lakukan sesuatu di sini
       setIsStateSet(false); // Reset flag state
     }
+    getHistory();
+    getDetailHistory();
   }, [isStateSet]);
-  const handleMenu = (name) => {
-    setMenu(name.link);
-    if (name.link == "dashboard") {
-      setShowDetail(false);
-    }
-    setTitle(name.name);
-  };
 
-  const handleFilterTanggal = (name, value) => {
-    const dayjsDate = dayjs(value);
-
-    let tanggalMulai = tanggalAwalString;
-    let tanggalSelesai = tanggalAkhirString;
-
-    if (!dayjsDate.isValid()) {
-      return;
-    }
-
-    const formattedDate = dayjsDate.format("YYYY-MM-DD");
-
-    if (name == "tanggalAwal") {
-      if (isTanggal == false) {
-        tanggalMulai = formattedDate;
-        setTanggalAkhir(value);
-        setTanggalAkhirString(formattedDate);
-      }
-      tanggalMulai = formattedDate;
-      setTanggalAwal(value);
-      setTanggalAwalString(formattedDate);
-    } else {
-      tanggalSelesai = formattedDate;
-      setTanggalAkhir(value);
-      setTanggalAkhirString(formattedDate);
-    }
-  };
-
-  const handleFilterAkun = (value) => {
-    setIdAkun(value);
-  };
-
-  const getAllAcount = async () => {
-    const url = urlAPI + "/accounts";
+  const getDetailHistory = async () => {
+    const url = urlAPI + "/history-check-detail/select";
     try {
-      const response = await axios.get(url);
-      const option = response.data.data;
-      const optionAkun = option.map((data) => ({
-        value: data.id,
-        label: data.name,
-      }));
-      setDataAkun(optionAkun);
+      const response = await axios.post(
+        url,
+        {
+          idHistory: id,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      console.log("cek", response);
     } catch (error) {
       console.log(error);
     }
   };
-  const isAnyStateEmpty = () => {
-    let emptyStates = [];
 
-    if (!idAkun) emptyStates.push("Akun Kas");
-    if (!nilaiCashflow) emptyStates.push("Nominal Kas");
-
-    if (emptyStates.length > 0) {
-      Swal.fire({
-        title: "Gagal",
-        text: `Harap Isi Kolom ${emptyStates}`,
-        icon: "error",
-      });
-      return true;
+  const getHistory = async () => {
+    const url = urlAPI + "/history-check/select";
+    try {
+      const response = await axios.post(
+        url,
+        {
+          id: id,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      console.log("cek", response);
+    } catch (error) {
+      console.log(error);
     }
-
-    return false;
   };
   const formatTanggal = (tanggal) => {
     const hari = dayjs(tanggal).locale("id").format("dddd");
@@ -162,229 +110,6 @@ const DetailHistory = () => {
     console.log("tanggal", dayjs(tanggal).locale("id").format("MMMM"));
 
     return hasil;
-  };
-
-  const handleHistory = async (data, selisih, username) => {
-    const url = urlAPI + "/insert-history";
-    try {
-      console.log("cek");
-
-      const response = await axios.post(
-        url,
-        {
-          user: username,
-          tanggalJurnalAwal: tanggalAwalString,
-          tanggalJurnalAkhir: tanggalAkhirString,
-          namaAkun: idAkun.value,
-          nominalKasManual: nilaiCashflow,
-          nominalKasSistem: data.jml,
-          selisih: selisih,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  const handleDetailKas = async () => {
-    const url = urlAPI + "/detail-arus-kas";
-    try {
-      console.log("cek");
-
-      const response = await axios.post(
-        url,
-        {
-          tanggalAwal: tanggalAwalString,
-          tanggalAkhir: tanggalAkhirString,
-          accountId: idAkun.value,
-          username: user,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      const data = response.data;
-      if (data.status == "Success") {
-        // Membuat objek untuk menyimpan array berdasarkan nama
-        const groupedData = data.dataDetailCashflow.reduce((acc, item) => {
-          if (!acc[item.k01]) {
-            acc[item.k01] = [];
-          }
-          acc[item.k01].push(item);
-          return acc;
-        }, {});
-
-        const result = Object.values(groupedData);
-        const dataDetail = result[1];
-        // Membuat objek untuk menyimpan array berdasarkan nama
-        const groupedDataDetail = dataDetail.reduce((acc, item) => {
-          if (!acc[item.k03]) {
-            acc[item.k03] = [];
-          }
-          acc[item.k03].push(item);
-          return acc;
-        }, {});
-
-        const resultDetail = Object.values(groupedDataDetail);
-        console.log(resultDetail, "berhasil");
-
-        setDataDetailMasuk(resultDetail[0]);
-        setDataDetailKeluar(resultDetail[1]);
-        setDataDetailAwal(result[0]);
-        setDataDetailAkhir(result[2]);
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  const handleCashflow = async (e) => {
-    e.preventDefault();
-    const cek = isAnyStateEmpty();
-    if (cek == false) {
-      const url = urlAPI + "/arus-kas";
-
-      try {
-        console.log("cek");
-
-        const response = await axios.post(
-          url,
-          {
-            tanggalAwal: tanggalAwalString,
-            tanggalAkhir: tanggalAkhirString,
-            accountId: idAkun.value,
-            username: user,
-          },
-          {
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-        const data = response.data;
-        console.log(data);
-
-        // Membuat objek untuk menyimpan array berdasarkan nama
-        const groupedData = data.data.reduce((acc, item) => {
-          if (!acc[item.k01]) {
-            acc[item.k01] = [];
-          }
-          acc[item.k01].push(item);
-          return acc;
-        }, {});
-
-        const result = Object.values(groupedData);
-        const hour = dayjs().locale("id").format("HH:mm");
-        const dataCash = result[2];
-        const dataModal = result[0];
-        const dataSetor = data.dataSetor;
-        const selisih = nilaiCashflow - dataCash[0].jml;
-        const selisihSetor = Math.abs(
-          parseInt(dataSetor.yangDisetor) -
-            (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
-        );
-        let ket = "";
-
-        if (nilaiCashflow < dataCash[0].jml) {
-          ket = "Kurang";
-        } else {
-          ket = "Lebih";
-        }
-
-        let ketSetor = "";
-
-        if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
-          ketSetor = "Kurang";
-        } else {
-          ketSetor = "Lebih";
-        }
-
-        if (dataSetor.yangDisetor !== "Tidak nyetor") {
-          if (selisihSetor > 0.5) {
-            const text = `\n\n<b> ${
-              data.namaPerusahaan
-            }</b>\n--------------------------------------------\n<b>${
-              Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
-            }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
-              data.namaUser
-            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-              tanggal
-            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAwalString != tanggalAkhirString
-                ? formatTanggal(tanggalAwalString) +
-                  " - " +
-                  formatTanggal(tanggalAkhirString)
-                : formatTanggal(tanggalAwalString)
-            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
-              data.namaPerusahaan
-            } \n<b>Nama Akun Setor : ${
-              dataSetor.namaAkunSetor
-            } \n<b>Nilai setor : ${formatRupiah(
-              dataSetor.yangDisetor
-            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
-              parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
-            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
-              Math.abs(
-                parseInt(dataSetor.yangDisetor) -
-                  (parseInt(dataModal[0].jml) -
-                    parseInt(dataSetor.modalSeharusnya))
-              )
-            )}\n\n`;
-
-            console.log(result[0]);
-            sendMessage(text);
-          }
-        }
-
-        handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
-        handleDetailKas();
-
-        await new Promise((resolve) => {
-          setDataCashflow1(result[0]);
-          setDataCashflow2(result[1]);
-          setDataCashflow3(result[2]);
-          setdataKas(data);
-          setisCek(true);
-          setIsStateSet(true); // Update flag state
-          resolve(); // Pastikan promise ini diselesaikan
-        });
-
-        console.log(result, "hasil");
-
-        if (nilaiCashflow !== dataCash[0].jml) {
-          const text = `\n\n<b> ${
-            data.namaPerusahaan
-          }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
-            data.namaUser
-          }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-            tanggal
-          )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-            tanggalAkhirString != tanggalAkhirString
-              ? formatTanggal(tanggalAwalString) +
-                " - " +
-                formatTanggal(tanggalAkhirString)
-              : formatTanggal(tanggalAwalString)
-          }\n<b>Pukul Cek: </b> ${hour} \n<b>Lokasi : </b> ${
-            data.namaPerusahaan
-          }  \n<b>Nama Akun Kas : ${
-            idAkun.label
-          } </b> \n<b>Nilai Kas Manual : ${formatRupiah(
-            nilaiCashflow
-          )} </b> \n<b>Nilai Kas Sistem : ${formatRupiah(
-            dataCash[0].jml
-          )} </b>\n<b>Selisih : </b> ${ket} ${formatRupiah(
-            Math.abs(selisih)
-          )}\n\n`;
-
-          console.log(text);
-          setTimeout(() => {
-            handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
-          }, 0);
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    }
   };
 
   const formatRupiah = (angka) => {
@@ -410,37 +135,6 @@ const DetailHistory = () => {
 
     return isNegative ? `(${formattedValue})` : formattedValue;
   };
-  const sendMessage = async (text, topic) => {
-    try {
-      const response = await fetch(
-        "https://api.telegram.org/bot6823587684:AAE4Ya6Lpwbfw8QxFYec6xAqWkBYeP53MLQ/sendMessage",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            chat_id: "-1001812360373",
-
-            text: text,
-            message_thread_id: "19535",
-            parse_mode: "html",
-          }),
-        }
-      );
-
-      // Cek apakah respons dari fetch adalah OK (status code 200)
-      if (response.ok) {
-        console.log("berhasilllllll");
-      } else {
-        console.log("gagalllllll");
-      }
-    } catch (error) {
-      // Tangani kesalahan yang terjadi selama fetch
-      console.error("Error:", error);
-      // alert("Terjadi kesalahan. Silakan coba lagi.");
-    }
-  };
 
   const cetak = () => {
     handlePrint(null, () => {
@@ -454,66 +148,6 @@ const DetailHistory = () => {
   const handlePrint = useReactToPrint({
     content: () => contentToPrint.current,
   });
-
-  const sendImage = async (text, fotoBlob) => {
-    try {
-      const formData = new FormData();
-      formData.append("chat_id", "-1001812360373"); // Ganti dengan chat ID tujuan
-      formData.append("photo", fotoBlob, "image.png"); // Foto sebagai blob
-      formData.append("caption", text);
-      formData.append("message_thread_id", "19535");
-      formData.append("parse_mode", "html");
-
-      const response = await fetch(
-        "https://api.telegram.org/bot6823587684:AAE4Ya6Lpwbfw8QxFYec6xAqWkBYeP53MLQ/sendPhoto",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (response.ok) {
-        console.log("Image sent successfully");
-        // alert("Image sent successfully!");
-      } else {
-        const errorData = await response.json();
-        console.log("Failed to send image", errorData);
-        alert(`Failed to send image: ${errorData.description}`);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      // alert("An error occurred. Please try again.");
-    }
-  };
-
-  const handleSendImage = async (text) => {
-    if (!contentToPrint.current) {
-      alert("No content to send!");
-      return;
-    }
-
-    try {
-      const canvas = await html2canvas(contentToPrint.current);
-      canvas.toBlob(async (blob) => {
-        await sendImage(text, blob);
-      }, "image/png");
-      alert("image sended");
-    } catch (error) {
-      console.error("Error capturing or sending image:", error);
-      alert("Failed to send image.");
-    }
-  };
-
-  const optionKas = [
-    {
-      value: "Rekap",
-      label: "Rekap",
-    },
-    {
-      value: "Detail",
-      label: "Detail",
-    },
-  ];
 
   function formatTime(dateString) {
     const date = new Date(dateString);
@@ -546,7 +180,7 @@ const DetailHistory = () => {
             data-aos="slide-down"
             className="w-[90%] flex justify-start items-center  text-sm font-normal bg-white shadow-md p-4 py-6 rounded-xl gap-6"
           >
-            <div className="w-auto flex z-[999] justify-start gap-3 items-center p-2 border border-slate-400 bg-white rounded-xl">
+            {/* <div className="w-auto flex z-[999] justify-start gap-3 items-center p-2 border border-slate-400 bg-white rounded-xl">
               <div className="flex items-center justify-center z-[999] w-[10rem]">
                 <Select
                   options={optionKas}
@@ -571,7 +205,7 @@ const DetailHistory = () => {
                   }}
                 />
               </div>
-            </div>
+            </div> */}
             <button
               onClick={handlePrint}
               className="w-[10rem] font-medium h-[3rem] shadow-lg hover:bg-white hover:border-blue-500 border transition hover:text-blue-500 border-transparent flex justify-center items-center bg-blue-500 text-white rounded-xl"
