@@ -19,13 +19,11 @@ const data = [
 function TableHistory(props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [dataPerPage] = useState(5);
-  const [dataPerPageDetail] = useState(5);
-  const [tab, setTab] = useState("tab1");
+
   const indexOfLastData = currentPage * dataPerPage;
   const indexOfFirstData = indexOfLastData - dataPerPage;
-  const indexOfLastDataDetail = currentPage * dataPerPageDetail;
-  const indexOfFirstDataDetail = indexOfLastDataDetail - dataPerPageDetail;
-  const currentData = data.slice(indexOfFirstData, indexOfLastData);
+
+  const currentData = props.data.slice(indexOfFirstData, indexOfLastData);
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -66,6 +64,20 @@ function TableHistory(props) {
     return hasil;
   };
 
+  const formatTanggalJurnal = (tanggalAwal, tanggalAkhir) => {
+    const formatDate = (tanggal) => {
+      return dayjs(tanggal).locale("id").format("DD MMMM YYYY");
+    };
+
+    const formattedTanggalAwal = formatDate(tanggalAwal);
+    const formattedTanggalAkhir = formatDate(tanggalAkhir);
+
+    if (formattedTanggalAwal === formattedTanggalAkhir) {
+      return formattedTanggalAwal;
+    } else {
+      return `${formattedTanggalAwal} - ${formattedTanggalAkhir}`;
+    }
+  };
   const sortByDateAndTimeDescending = (arrayObjek) => {
     return arrayObjek.sort((a, b) => {
       const dateA = new Date(a.tanggal);
@@ -91,9 +103,6 @@ function TableHistory(props) {
     });
   };
 
-  const handleTab = (key) => {
-    setTab(key);
-  };
   return (
     <div className="p-4 bg-white w-[90%] rounded-xl shadow-lg mb-[4rem]">
       <table className="w-full text-left text-base font-normal">
@@ -112,37 +121,42 @@ function TableHistory(props) {
           </tr>
         </thead>
         <tbody>
-          <tr
-            onClick={() => {
-              window.location.href = "/detail-riwayat";
-            }}
-            className="hover:cursor-pointer"
-          >
-            <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
-              gggg
-            </td>
+          {props.data.map((item) => (
+            <tr
+              onClick={() => {
+                window.location.href = `/detail-riwayat/${item.id}`;
+              }}
+              className="hover:cursor-pointer"
+            >
+              <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
+                {formatTanggal(item.tanggal_cek)}
+              </td>
 
-            <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
-              ggg
-            </td>
+              <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
+                {formatTanggalJurnal(
+                  item.tanggal_jurnal_awal,
+                  item.tanggal_jurnal_akhir
+                )}
+              </td>
 
-            <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
-              ggg
-            </td>
+              <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
+                {formatRupiah(item.nominal_kas_manual)}
+              </td>
 
-            <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
-              gggg
-            </td>
-            <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
-              ggg
-            </td>
-          </tr>
+              <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
+                {formatRupiah(item.nominal_kas_sistem)}
+              </td>
+              <td className="border-b border-blue-gray-300 h-[4rem] max-h-[6rem] px-4 py-2">
+                {formatRupiah(item.selisih)}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
       <div className="mt-10">
         {Array.from(
-          { length: Math.ceil(data.length / dataPerPage) },
+          { length: Math.ceil(props.data.length / dataPerPage) },
           (_, i) => i + 1
         ).map((page) => (
           <button

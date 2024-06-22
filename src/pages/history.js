@@ -1,16 +1,48 @@
 import React, { Component } from "react";
 import TableHistory from "../components/table";
-
+import { urlAPI } from "../config/database";
+import axios from "axios";
 class History extends Component {
   constructor(props) {
     super(props);
+    const user = sessionStorage.getItem("userEmail");
+
     this.state = {
-      dataKosong: [],
+      dataRiwayat: [],
+      user: user,
     };
   }
 
-  componentDidMount() {}
+  componentDidMount() {
+    this.getHistory();
+  }
+  getHistory = async () => {
+    const url = urlAPI + "/history-check/by-user";
+    try {
+      console.log("cek");
 
+      const response = await axios.post(
+        url,
+        {
+          user: this.state.user,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const dataHasil = response.data;
+      const idHistory = dataHasil.data[0];
+      console.log("data Riwayat", dataHasil.data);
+
+      this.setState({ dataRiwayat: dataHasil.data });
+      return dataHasil.data;
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  
   render() {
     return (
       <div className="w-full flex justify-start items-center flex-col">
@@ -22,7 +54,7 @@ class History extends Component {
             Riwayat
           </div>
         </div>
-        <TableHistory />
+        <TableHistory data={this.state.dataRiwayat} />
       </div>
     );
   }

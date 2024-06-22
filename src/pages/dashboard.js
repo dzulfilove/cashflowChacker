@@ -165,16 +165,15 @@ const Dashboard = () => {
     return hasil;
   };
 
-  const handleHistory = async (data, selisih, username) => {
-    const url = urlAPI + "/history-cek/insert";
+  const handleHistory = async (data, selisih, username, dataRiwayat) => {
+    const url = urlAPI + "/history-check/insert";
     try {
-      console.log("cek");
-
       const response = await axios.post(
         url,
         {
-          user: username,
-          tanggalCek: tanggal,
+          user: user,
+
+          name: username,
           tanggalJurnalAwal: tanggalAwalString,
           tanggalJurnalAkhir: tanggalAkhirString,
           namaAkun: idAkun.value,
@@ -186,35 +185,45 @@ const Dashboard = () => {
           headers: { "Content-Type": "application/json" },
         }
       );
+      console.log(response, "anaamaa");
+
+      getHistory(Math.abs(selisih), username, dataRiwayat);
     } catch (error) {
       console.log(error);
     }
   };
   const getHistory = async (selisih, username, data) => {
-    const url = urlAPI + "/insert-history";
+    const url = urlAPI + "/history-check/select";
     try {
       console.log("cek");
 
       const response = await axios.post(
         url,
         {
-          user: username,
+          user: user,
           selisih: selisih,
-          tanggal: tanggal,
+          tanggalCek: tanggal,
         },
         {
           headers: { "Content-Type": "application/json" },
         }
       );
-      const idHistory = response.data.id;
-      await handleHistoryDetail(idHistory, data);
-      return response.data;
+
+      const dataHasil = response.data;
+      const idHistory = dataHasil.data[0];
+      console.log("data Riwayat", dataHasil.data);
+
+      if (data.length > 0) {
+        await handleHistoryDetail(idHistory.id, data);
+      }
+
+      return dataHasil;
     } catch (error) {
       console.log(error);
     }
   };
   const handleSelisihKurang = async (selisih) => {
-    alert(selisih);
+    alert("kurang");
     const url = urlAPI + "/journal/kurang";
     try {
       console.log("cek");
@@ -234,7 +243,7 @@ const Dashboard = () => {
     }
   };
   const handleSelisihLebih = async (selisih) => {
-    alert(selisih);
+    console.log("lebih");
     const url = urlAPI + "/journal/lebih";
     try {
       console.log("cek");
@@ -254,22 +263,26 @@ const Dashboard = () => {
     }
   };
   const handleHistoryDetail = async (id, data) => {
-    const url = urlAPI + "/insert-detail-history";
+    const url = urlAPI + "/history-check-detail/insert";
     try {
-      console.log("cek");
+      data.forEach((item) => {
+        const response = axios.post(
+          url,
+          {
+            idRiwayat: id,
+            jenisKas: item.k02,
+            namaKas: item.k03,
+            nominal: item.jml,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
 
-      const response = await axios.post(
-        url,
-        {
-          idHistory: id,
-          jnsKas: data.k01,
-          namaKas: data.k03,
-          nominal: data.jml,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+        console.log(item.k03);
+      });
+
+      console.log("berhasil detail");
     } catch (error) {
       console.log(error);
     }
@@ -277,8 +290,6 @@ const Dashboard = () => {
   const handleDetailKas = async () => {
     const url = urlAPI + "/detail-arus-kas";
     try {
-      console.log("cek");
-
       const response = await axios.post(
         url,
         {
@@ -373,13 +384,13 @@ const Dashboard = () => {
             (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
         );
         let ket = "";
-
-        if (nilaiCashflow < dataCash[0].jml) {
-          ket = "Kurang";
-        } else {
-          ket = "Lebih";
+        if (Math.abs(selisih > 0.5)) {
+          if (nilaiCashflow < dataCash[0].jml) {
+            ket = "Kurang";
+          } else {
+            ket = "Lebih";
+          }
         }
-
         let ketSetor = "";
 
         if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
@@ -424,30 +435,41 @@ const Dashboard = () => {
             // sendMessage(text);
           }
         }
-        Swal.fire({
-          title: "Perhatian?",
-          text: "Apakah Anda Ingin Menyimpan Selisih Lebih Ke Pendapatan Lain-lain ?",
-          showDenyButton: true,
-          confirmButtonText: "Ya",
-          denyButtonText: `Tidak`,
-        }).then((result) => {
-          /* Read more about isConfirmed, isDenied below */
-          if (result.isConfirmed) {
-            Swal.fire("Saved!", "", "success");
-          } else if (result.isDenied) {
-            Swal.fire("Changes are not saved", "", "info");
-          }
-        });
 
         if (ket == "Kurang") {
-          handleSelisihKurang(Math.abs(selisih));
+          await handleSelisihKurang(Math.abs(selisih), "Kurang");
         } else {
-          handleSelisihLebih(Math.abs(selisih));
+          await handleSelisihLebih(Math.abs(selisih), "Lebih");
+
+          Swal.fire({
+            title: "Perhatian!",
+            text: `Selisih Lebih Sejumlah ${formatRupiah(
+              Math.abs(selisih)
+            )} Ke Pendapatan Lain-lain ?`,
+            confirmButtonText: "OK",
+          });
         }
-        // await handleHistory(dataCash[0], Math.abs(selisih), data.namaUser);
-        // await getHistory(Math.abs(selisih), data.namaUser, data.data);
+        const kosong = [];
+        const cekRiwayat = await getHistory(
+          Math.abs(selisih),
+          data.namaUser,
+          kosong
+        );
+
+        // alert(cekRiwayat.data.length);
+        if (cekRiwayat.data.length == 0) {
+          console.log("Hasil riwayat", cekRiwayat);
+
+          await handleHistory(
+            dataCash[0],
+            Math.abs(selisih),
+            data.namaUser,
+            data.data
+          );
+        }
         await handleDetailKas();
 
+        console.log(data, "data result");
         await new Promise((resolve) => {
           setDataCashflow1(result[0]);
           setDataCashflow2(result[1]);

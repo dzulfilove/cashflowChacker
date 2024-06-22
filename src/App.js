@@ -282,7 +282,7 @@ const App = () => {
                 <>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/riwayat" element={<History />} />
-                  <Route path="/detail-riwayat" element={<DetailHistory />} />
+                  <Route path="/detail-riwayat/:id" element={<DetailHistory />} />
                 </>
               ) : (
                 <>
