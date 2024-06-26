@@ -3,18 +3,6 @@ import swal from "sweetalert2";
 import { Tabs, Tab } from "react-bootstrap";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
-const data = [
-  { id: 1, name: "John Doe", age: 25 },
-  { id: 2, name: "Jane Doe", age: 30 },
-  { id: 3, name: "Jim Smith", age: 35 },
-  { id: 4, name: "Jill Smith", age: 40 },
-  { id: 5, name: "Jake Brown", age: 45 },
-  { id: 6, name: "Jessica Brown", age: 50 },
-  { id: 7, name: "Jay Green", age: 55 },
-  { id: 8, name: "Jill Green", age: 60 },
-  { id: 9, name: "Joe White", age: 65 },
-  { id: 10, name: "Joan White", age: 70 },
-];
 
 function TableHistory(props) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,7 +101,7 @@ function TableHistory(props) {
 
             <th className="px-4 py-4 font-medium">Nilai Manual</th>
 
-            <th className="px-4 py-4 font-medium">Nila Sistem</th>
+            <th className="px-4 py-4 font-medium">Nilai Sistem</th>
 
             <th className="px-4 py-4 w-36 font-medium rounded-r-xl">
               Selisih{" "}
@@ -121,7 +109,7 @@ function TableHistory(props) {
           </tr>
         </thead>
         <tbody>
-          {props.data.map((item) => (
+          {currentData.map((item) => (
             <tr
               onClick={() => {
                 window.location.href = `/detail-riwayat/${item.id}`;
