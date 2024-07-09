@@ -24,6 +24,9 @@ import Dashboard from "./pages/dashboard";
 import RegistartionForm from "./pages/auth";
 import History from "./pages/history";
 import DetailHistory from "./pages/detailHistory";
+import QrisPayment from "./pages/qrisPayment";
+import DataPenjualan from "./pages/dataPenjualan";
+import QrisPage from "./pages/qrisPage";
 const App = () => {
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const menus = [
@@ -174,14 +177,14 @@ const App = () => {
                     !open && "opacity-0 translate-x-28 overflow-hidden"
                   }`}
                 >
-                  Dashboard
+                  Cashflow
                 </h2>
                 <h2
                   className={`${
                     open && "hidden"
                   } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
                 >
-                  Dashboard
+                  Cashflow
                 </h2>
               </button>
             </>
@@ -206,14 +209,43 @@ const App = () => {
                     !open && "opacity-0 translate-x-28 overflow-hidden"
                   }`}
                 >
-                  Dashboard
+                  Cashflow
                 </h2>
                 <h2
                   className={`${
                     open && "hidden"
                   } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
                 >
-                  Dashboard
+                  Cashflow
+                </h2>
+              </button>
+              <button
+                onClick={() => {
+                  window.location.href = `/qris-payment`;
+                }}
+                className={` ${
+                  menu?.margin && "mt-5"
+                } group flex items-center text-base  gap-3.5 font-medium p-2 hover:bg-blue-600 rounded-md`}
+              >
+                <div>
+                  {React.createElement(MdOutlineDashboard, { size: "20" })}
+                </div>
+                <h2
+                  style={{
+                    transitionDelay: `${1 + 3}00ms`,
+                  }}
+                  className={`whitespace-pre duration-500 ${
+                    !open && "opacity-0 translate-x-28 overflow-hidden"
+                  }`}
+                >
+                  Qris Payment
+                </h2>
+                <h2
+                  className={`${
+                    open && "hidden"
+                  } absolute left-48 bg-white font-semibold whitespace-pre text-gray-900 rounded-md drop-shadow-lg px-0 py-0 w-0 overflow-hidden group-hover:px-2 group-hover:py-1 group-hover:left-14 group-hover:duration-300 group-hover:w-fit  `}
+                >
+                  Qris Payment
                 </h2>
               </button>
               <button
@@ -281,12 +313,18 @@ const App = () => {
               {isLoggedIn ? (
                 <>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/qris-payment" element={<QrisPage />} />
                   <Route path="/riwayat" element={<History />} />
-                  <Route path="/detail-riwayat/:id" element={<DetailHistory />} />
+                  <Route
+                    path="/detail-riwayat/:id"
+                    element={<DetailHistory />}
+                  />
+                  <Route path="/add-data" element={<DataPenjualan />} />
                 </>
               ) : (
                 <>
                   <Route path="/" element={<RegistartionForm />} />
+                  <Route path="/add-data" element={<DataPenjualan />} />
                 </>
               )}
             </Routes>

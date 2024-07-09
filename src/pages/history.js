@@ -42,7 +42,6 @@ class History extends Component {
     }
   };
 
-  
   render() {
     return (
       <div className="w-full flex justify-start items-center flex-col">
@@ -51,7 +50,7 @@ class History extends Component {
             data-aos="slide-down"
             className="w-[90%] flex justify-start items-center  text-2xl font-semibold bg-white shadow-md p-4 py-6 rounded-xl mb-12"
           >
-            Riwayat
+            Riwayat Pengecekan
           </div>
         </div>
         <TableHistory data={this.state.dataRiwayat} />

@@ -144,6 +144,8 @@ const Dashboard = () => {
         text: `Harap Isi Kolom ${emptyStates}`,
         icon: "error",
       });
+      setCek(false);
+
       return true;
     }
 
@@ -166,6 +168,7 @@ const Dashboard = () => {
   };
 
   const handleHistory = async (data, selisih, username, dataRiwayat) => {
+    console.log(tanggalAwalString, tanggalAkhirString);
     const url = urlAPI + "/history-check/insert";
     try {
       const response = await axios.post(
@@ -222,8 +225,8 @@ const Dashboard = () => {
       console.log(error);
     }
   };
-  const handleSelisihKurang = async (selisih) => {
-    alert("kurang");
+  const handleSelisihKurang = async (selisih, ket) => {
+    // alert("kurang");
     const url = urlAPI + "/journal/kurang";
     try {
       console.log("cek");
@@ -231,8 +234,10 @@ const Dashboard = () => {
       const response = await axios.post(
         url,
         {
+          idAkun: idAkun.value,
           username: user,
           selisih: selisih,
+          ket: ket,
         },
         {
           headers: { "Content-Type": "application/json" },
@@ -242,7 +247,7 @@ const Dashboard = () => {
       console.log(error);
     }
   };
-  const handleSelisihLebih = async (selisih) => {
+  const handleSelisihLebih = async (selisih, ket) => {
     console.log("lebih");
     const url = urlAPI + "/journal/lebih";
     try {
@@ -251,8 +256,10 @@ const Dashboard = () => {
       const response = await axios.post(
         url,
         {
+          idAkun: idAkun.value,
           username: user,
           selisih: selisih,
+          ket: ket,
         },
         {
           headers: { "Content-Type": "application/json" },
@@ -352,8 +359,8 @@ const Dashboard = () => {
         const response = await axios.post(
           url,
           {
-            tanggalAwal: tanggalAwalString,
-            tanggalAkhir: tanggalAkhirString,
+            tanggalAwal: tanggal,
+            tanggalAkhir: tanggal,
             accountId: idAkun.value,
             username: user,
           },
@@ -372,118 +379,135 @@ const Dashboard = () => {
           acc[item.k01].push(item);
           return acc;
         }, {});
-
         const result = Object.values(groupedData);
-        const hour = dayjs().locale("id").format("HH:mm");
-        const dataCash = result[2];
-        const dataModal = result[0];
-        const dataSetor = data.dataSetor;
-        const selisih = nilaiCashflow - dataCash[0].jml;
-        const selisihSetor = Math.abs(
-          parseInt(dataSetor.yangDisetor) -
-            (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
-        );
-        let ket = "";
-        if (Math.abs(selisih > 0.5)) {
-          if (nilaiCashflow < dataCash[0].jml) {
-            ket = "Kurang";
-          } else {
-            ket = "Lebih";
-          }
-        }
-        let ketSetor = "";
-
-        if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
-          ketSetor = "Kurang";
-        } else {
-          ketSetor = "Lebih";
-        }
-
-        if (dataSetor.yangDisetor !== "Tidak nyetor") {
-          if (selisihSetor > 0.5) {
-            const text = `\n\n<b> ${
-              data.namaPerusahaan
-            }</b>\n--------------------------------------------\n<b>${
-              Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
-            }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
-              data.namaUser
-            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-              tanggal
-            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAwalString != tanggalAkhirString
-                ? formatTanggal(tanggalAwalString) +
-                  " - " +
-                  formatTanggal(tanggalAkhirString)
-                : formatTanggal(tanggalAwalString)
-            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
-              data.namaPerusahaan
-            } \n<b>Nama Akun Setor : ${
-              dataSetor.namaAkunSetor
-            } \n<b>Nilai setor : ${formatRupiah(
-              dataSetor.yangDisetor
-            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
-              parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
-            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
-              Math.abs(
-                parseInt(dataSetor.yangDisetor) -
-                  (parseInt(dataModal[0].jml) -
-                    parseInt(dataSetor.modalSeharusnya))
-              )
-            )}\n\n`;
-
-            console.log(result[0]);
-            // sendMessage(text);
-          }
-        }
-
-        if (ket == "Kurang") {
-          await handleSelisihKurang(Math.abs(selisih), "Kurang");
-        } else {
-          await handleSelisihLebih(Math.abs(selisih), "Lebih");
-
-          Swal.fire({
-            title: "Perhatian!",
-            text: `Selisih Lebih Sejumlah ${formatRupiah(
-              Math.abs(selisih)
-            )} Ke Pendapatan Lain-lain ?`,
-            confirmButtonText: "OK",
-          });
-        }
-        const kosong = [];
-        const cekRiwayat = await getHistory(
-          Math.abs(selisih),
-          data.namaUser,
-          kosong
-        );
-
-        // alert(cekRiwayat.data.length);
-        if (cekRiwayat.data.length == 0) {
-          console.log("Hasil riwayat", cekRiwayat);
-
-          await handleHistory(
-            dataCash[0],
-            Math.abs(selisih),
-            data.namaUser,
-            data.data
-          );
-        }
-        await handleDetailKas();
-
-        console.log(data, "data result");
-        await new Promise((resolve) => {
-          setDataCashflow1(result[0]);
-          setDataCashflow2(result[1]);
-          setDataCashflow3(result[2]);
-          setdataKas(data);
-          setisCek(true);
-          setCek(false);
-          setIsStateSet(true); // Update flag state
-          resolve(); // Pastikan promise ini diselesaikan
-        });
 
         console.log(result, "hasil");
+        if (result.length <= 2) {
+          Swal.fire({
+            title: "Perhatian!",
+            text: `Belum Ada Data Transaksi`,
+            confirmButtonText: "OK",
+          });
+          setCek(false);
+        } else {
+          const hour = dayjs().locale("id").format("HH:mm");
+          const dataCash = result[2];
+          const dataModal = result[0];
+          const dataSetor = data.dataSetor;
+          const selisih = nilaiCashflow - dataCash[0].jml;
+          const selisihSetor = Math.abs(
+            parseInt(dataSetor.yangDisetor) -
+              (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
+          );
+          let ket = "";
+          if (Math.abs(selisih) > 0.5) {
+            if (nilaiCashflow < dataCash[0].jml) {
+              ket = "Kurang";
+            } else if (nilaiCashflow > dataCash[0].jml) {
+              ket = "Lebih";
+            } else {
+              ket = "Sama";
+            }
+          }
+          let ketSetor = "";
 
-        if (nilaiCashflow !== dataCash[0].jml) {
+          if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
+            ketSetor = "Kurang";
+          } else {
+            ketSetor = "Lebih";
+          }
+
+          if (dataSetor.yangDisetor !== "Tidak nyetor") {
+            if (selisihSetor > 0.5) {
+              const text = `\n\n<b> ${
+                data.namaPerusahaan
+              }</b>\n--------------------------------------------\n<b>${
+                Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
+              }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+                data.namaUser
+              }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+                tanggal
+              )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+                tanggalAwalString != tanggalAkhirString
+                  ? formatTanggal(tanggalAwalString) +
+                    " - " +
+                    formatTanggal(tanggalAkhirString)
+                  : formatTanggal(tanggalAwalString)
+              }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
+                data.namaPerusahaan
+              } \n<b>Nama Akun Setor : ${
+                dataSetor.namaAkunSetor
+              } \n<b>Nilai setor : ${formatRupiah(
+                dataSetor.yangDisetor
+              )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
+                parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
+              )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
+                Math.abs(
+                  parseInt(dataSetor.yangDisetor) -
+                    (parseInt(dataModal[0].jml) -
+                      parseInt(dataSetor.modalSeharusnya))
+                )
+              )}\n\n`;
+
+              console.log(result[0]);
+              sendMessage(text);
+            }
+          }
+
+          if (ket == "Kurang") {
+            await handleSelisihKurang(Math.abs(selisih), "Kurang");
+            Swal.fire({
+              title: "Perhatian!",
+              text: `Selisih Kurang Sejumlah ${formatRupiah(
+                Math.abs(selisih)
+              )} Di Jurnal Otomatis Ke Piutang Karyawan `,
+              confirmButtonText: "OK",
+            });
+          } else if (ket == "Lebih") {
+            await handleSelisihLebih(Math.abs(selisih), "Lebih");
+
+            Swal.fire({
+              title: "Perhatian!",
+              text: `Selisih Lebih Sejumlah ${formatRupiah(
+                Math.abs(selisih)
+              )} Di Jurnal Otomatis Ke Pendapatan Lain-lain `,
+              confirmButtonText: "OK",
+            });
+          }
+          const kosong = [];
+          const cekRiwayat = await getHistory(
+            Math.abs(selisih),
+            data.namaUser,
+            kosong
+          );
+
+          // alert(cekRiwayat.data.length);
+          if (cekRiwayat.data.length == 0) {
+            console.log("Hasil riwayat", cekRiwayat);
+
+            await handleHistory(
+              dataCash[0],
+              Math.abs(selisih),
+              data.namaUser,
+              data.data
+            );
+          }
+          await handleDetailKas();
+
+          console.log(data, "data result");
+          await new Promise((resolve) => {
+            setDataCashflow1(result[0]);
+            setDataCashflow2(result[1]);
+            setDataCashflow3(result[2]);
+            setdataKas(data);
+            setisCek(true);
+            setCek(false);
+            setIsStateSet(true); // Update flag state
+            resolve(); // Pastikan promise ini diselesaikan
+          });
+
+          console.log(result, "hasil");
+
           const text = `\n\n<b> ${
             data.namaPerusahaan
           }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
@@ -510,7 +534,7 @@ const Dashboard = () => {
 
           console.log(text);
           setTimeout(() => {
-            // handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
+            handleSendImage(text); // Pastikan handleSendImage dipanggil setelah state diset
           }, 0);
         }
       } catch (error) {
@@ -620,7 +644,7 @@ const Dashboard = () => {
 
   const handleSendImage = async (text) => {
     if (!contentToPrint.current) {
-      alert("No content to send!");
+      // alert("No content to send!");
       return;
     }
 
@@ -629,7 +653,7 @@ const Dashboard = () => {
       canvas.toBlob(async (blob) => {
         await sendImage(text, blob);
       }, "image/png");
-      alert("image sended");
+      // alert("image sended");
     } catch (error) {
       console.error("Error capturing or sending image:", error);
       alert("Failed to send image.");
@@ -737,72 +761,6 @@ const Dashboard = () => {
                   setNilaiCashflow(e.target.value);
                 }}
               />
-              <div className="w-[10rem] flex justify-center items-center ">
-                <LocalizationProvider
-                  dateAdapter={AdapterDayjs}
-                  adapterLocale="id"
-                >
-                  <DatePicker
-                    name="tanggalAwal"
-                    locale="id"
-                    className="bg-white text-sm"
-                    label="Tanggal Awal"
-                    value={tanggalAwal}
-                    onChange={(selectedDate) =>
-                      handleFilterTanggal("tanggalAwal", selectedDate)
-                    }
-                    inputFormat="DD/MM/YYYY"
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        placeholder="dd/mm/yyyy"
-                        fullWidth
-                      />
-                    )}
-                  />
-                </LocalizationProvider>
-              </div>
-              {isTanggal && (
-                <>
-                  <div
-                    className="w-[10rem] flex justify-center items-center text-sm
-                font-medium "
-                  >
-                    <LocalizationProvider
-                      dateAdapter={AdapterDayjs}
-                      adapterLocale="id"
-                    >
-                      <DatePicker
-                        name="tanggalAwal"
-                        locale="id"
-                        className="bg-white text-sm"
-                        label="Tanggal Akhir"
-                        value={tanggalAkhir}
-                        onChange={(selectedDate) =>
-                          handleFilterTanggal("tanggalAkhir", selectedDate)
-                        }
-                        inputFormat="DD/MM/YYYY"
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            placeholder="dd/mm/yyyy"
-                            fullWidth
-                          />
-                        )}
-                      />
-                    </LocalizationProvider>
-                  </div>
-                </>
-              )}
-              <label className="inline-flex items-center border border-blue-500 rounded-md p-2">
-                <input
-                  type="checkbox"
-                  className="form-checkbox h-5 w-5 text-blue-600"
-                  checked={isTanggal}
-                  onChange={() => setIsTanggal(!isTanggal)}
-                />
-                <span className="ml-2 text-gray-700">Rentang Tanggal ?</span>
-              </label>
 
               <button
                 onClick={cek == false ? handleCashflow : () => {}}
@@ -935,7 +893,7 @@ const Dashboard = () => {
                       dataCashflow3={dataCashflow3}
                       tanggal={tanggal}
                       dataKas={dataKas}
-                      idAkun={idAkun}
+                      idAkun={idAkun.label}
                       tanggalAwalString={tanggalAwalString}
                       tanggalAkhirString={tanggalAkhirString}
                     />

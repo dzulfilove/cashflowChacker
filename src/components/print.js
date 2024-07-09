@@ -40,6 +40,20 @@ const PrintComponent = (props) => {
 
     return isNegative ? `(${formattedValue})` : formattedValue;
   };
+  const formatTanggalJurnal = (tanggalAwal, tanggalAkhir) => {
+    const formatDate = (tanggal) => {
+      return dayjs(tanggal).locale("id").format("DD MMMM YYYY");
+    };
+
+    const formattedTanggalAwal = formatDate(tanggalAwal);
+    const formattedTanggalAkhir = formatDate(tanggalAkhir);
+
+    if (formattedTanggalAwal === formattedTanggalAkhir) {
+      return formattedTanggalAwal;
+    } else {
+      return `${formattedTanggalAwal} - ${formattedTanggalAkhir}`;
+    }
+  };
   return (
     <div>
       <div className="flex w-[50rem] border  rounded-md p-4 flex-col justify-start items-start mb-20 mt-10 ml-0">
@@ -53,18 +67,17 @@ const PrintComponent = (props) => {
           <div className="font-medium text-sm flex w-full justify-start items-center">
             <div className="flex justify-between w-[7rem]">Jenis Kas</div>
             <div className="flex justify-between w-[20rem]">
-              : {props.idAkun.label}
+              : {props.idAkun}
             </div>
           </div>
           <div className="font-medium text-sm flex w-full justify-start items-center">
             <div className="flex justify-between w-[7rem]">Periode</div>
             <div className="flex justify-between w-[20rem]">
               :{" "}
-              {props.isTanggal == false
-                ? formatTanggal(props.tanggalAwalString)
-                : formatTanggal(props.tanggalAwalString) +
-                  " - " +
-                  formatTanggal(props.tanggalAkhirString)}
+              {formatTanggalJurnal(
+                props.tanggalAwalString,
+                props.tanggalAkhirString
+              )}
             </div>
           </div>
         </div>
@@ -143,7 +156,9 @@ const PrintComponent = (props) => {
             </div>
             <div className="flex justify-between ">Petugas</div>
             <div className="flex justify-between h-[5rem] items-end">
-              {props.dataKas.namaUser}
+              {props.dataKas.namaUser
+                ? props.dataKas.namaUser
+                : props.dataKas.name}
             </div>
           </div>
         </div>
