@@ -25,6 +25,8 @@ import RegistartionForm from "./pages/auth";
 import History from "./pages/history";
 import DetailHistory from "./pages/detailHistory";
 import QrisPayment from "./pages/qrisPayment";
+import DataPenjualan from "./pages/dataPenjualan";
+import QrisPage from "./pages/qrisPage";
 const App = () => {
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   const menus = [
@@ -311,16 +313,18 @@ const App = () => {
               {isLoggedIn ? (
                 <>
                   <Route path="/" element={<Dashboard />} />
-                  <Route path="/qris-payment" element={<QrisPayment />} />
+                  <Route path="/qris-payment" element={<QrisPage />} />
                   <Route path="/riwayat" element={<History />} />
                   <Route
                     path="/detail-riwayat/:id"
                     element={<DetailHistory />}
                   />
+                  <Route path="/add-data" element={<DataPenjualan />} />
                 </>
               ) : (
                 <>
                   <Route path="/" element={<RegistartionForm />} />
+                  <Route path="/add-data" element={<DataPenjualan />} />
                 </>
               )}
             </Routes>

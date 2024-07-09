@@ -379,120 +379,135 @@ const Dashboard = () => {
           acc[item.k01].push(item);
           return acc;
         }, {});
-
         const result = Object.values(groupedData);
-        const hour = dayjs().locale("id").format("HH:mm");
-        const dataCash = result[2];
-        const dataModal = result[0];
-        const dataSetor = data.dataSetor;
-        const selisih = nilaiCashflow - dataCash[0].jml;
-        const selisihSetor = Math.abs(
-          parseInt(dataSetor.yangDisetor) -
-            (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
-        );
-        let ket = "";
-        if (Math.abs(selisih) > 0.5) {
-          if (nilaiCashflow < dataCash[0].jml) {
-            ket = "Kurang";
-          } else if (nilaiCashflow > dataCash[0].jml) {
-            ket = "Lebih";
-          } else {
-            ket = "Sama";
-          }
-        }
-        let ketSetor = "";
-
-        if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
-          ketSetor = "Kurang";
-        } else {
-          ketSetor = "Lebih";
-        }
-
-        if (dataSetor.yangDisetor !== "Tidak nyetor") {
-          if (selisihSetor > 0.5) {
-            const text = `\n\n<b> ${
-              data.namaPerusahaan
-            }</b>\n--------------------------------------------\n<b>${
-              Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
-            }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
-              data.namaUser
-            }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
-              tanggal
-            )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
-              tanggalAwalString != tanggalAkhirString
-                ? formatTanggal(tanggalAwalString) +
-                  " - " +
-                  formatTanggal(tanggalAkhirString)
-                : formatTanggal(tanggalAwalString)
-            }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
-              data.namaPerusahaan
-            } \n<b>Nama Akun Setor : ${
-              dataSetor.namaAkunSetor
-            } \n<b>Nilai setor : ${formatRupiah(
-              dataSetor.yangDisetor
-            )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
-              parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
-            )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
-              Math.abs(
-                parseInt(dataSetor.yangDisetor) -
-                  (parseInt(dataModal[0].jml) -
-                    parseInt(dataSetor.modalSeharusnya))
-              )
-            )}\n\n`;
-
-            console.log(result[0]);
-            sendMessage(text);
-          }
-        }
-
-        if (ket == "Kurang") {
-          // await handleSelisihKurang(Math.abs(selisih), "Kurang");
-        } else if (ket == "Lebih") {
-          await handleSelisihLebih(Math.abs(selisih), "Lebih");
-
-          Swal.fire({
-            title: "Perhatian!",
-            text: `Selisih Lebih Sejumlah ${formatRupiah(
-              Math.abs(selisih)
-            )} Di Jurnal Otomatis Ke Pendapatan Lain-lain `,
-            confirmButtonText: "OK",
-          });
-        }
-        const kosong = [];
-        const cekRiwayat = await getHistory(
-          Math.abs(selisih),
-          data.namaUser,
-          kosong
-        );
-
-        // alert(cekRiwayat.data.length);
-        if (cekRiwayat.data.length == 0) {
-          console.log("Hasil riwayat", cekRiwayat);
-
-          await handleHistory(
-            dataCash[0],
-            Math.abs(selisih),
-            data.namaUser,
-            data.data
-          );
-        }
-        await handleDetailKas();
-
-        console.log(data, "data result");
-        await new Promise((resolve) => {
-          setDataCashflow1(result[0]);
-          setDataCashflow2(result[1]);
-          setDataCashflow3(result[2]);
-          setdataKas(data);
-          setisCek(true);
-          setCek(false);
-          setIsStateSet(true); // Update flag state
-          resolve(); // Pastikan promise ini diselesaikan
-        });
 
         console.log(result, "hasil");
+        if (result.length <= 2) {
+          Swal.fire({
+            title: "Perhatian!",
+            text: `Belum Ada Data Transaksi`,
+            confirmButtonText: "OK",
+          });
+          setCek(false);
+        } else {
+          const hour = dayjs().locale("id").format("HH:mm");
+          const dataCash = result[2];
+          const dataModal = result[0];
+          const dataSetor = data.dataSetor;
+          const selisih = nilaiCashflow - dataCash[0].jml;
+          const selisihSetor = Math.abs(
+            parseInt(dataSetor.yangDisetor) -
+              (parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya))
+          );
+          let ket = "";
+          if (Math.abs(selisih) > 0.5) {
+            if (nilaiCashflow < dataCash[0].jml) {
+              ket = "Kurang";
+            } else if (nilaiCashflow > dataCash[0].jml) {
+              ket = "Lebih";
+            } else {
+              ket = "Sama";
+            }
+          }
+          let ketSetor = "";
 
-        if (nilaiCashflow !== dataCash[0].jml) {
+          if (dataSetor.modalSeharusnya < dataSetor.sisaModal) {
+            ketSetor = "Kurang";
+          } else {
+            ketSetor = "Lebih";
+          }
+
+          if (dataSetor.yangDisetor !== "Tidak nyetor") {
+            if (selisihSetor > 0.5) {
+              const text = `\n\n<b> ${
+                data.namaPerusahaan
+              }</b>\n--------------------------------------------\n<b>${
+                Math.abs(selisih) < 0.5 ? "Nilai Kas Balance, Namun" : ""
+              }Nominal Setor Tidak Sesuai Dengan Modal Seharusnya </b>\n\n<b>Nama Pengecek :  </b>${
+                data.namaUser
+              }\n<b>Hari, Tanggal Cek : </b> ${formatTanggal(
+                tanggal
+              )}\n<b>Hari, Tanggal Jurnal Kas : </b> ${
+                tanggalAwalString != tanggalAkhirString
+                  ? formatTanggal(tanggalAwalString) +
+                    " - " +
+                    formatTanggal(tanggalAkhirString)
+                  : formatTanggal(tanggalAwalString)
+              }\n<b>Pukul Cek : </b> ${hour} \n<b>Lokasi : </b> ${
+                data.namaPerusahaan
+              } \n<b>Nama Akun Setor : ${
+                dataSetor.namaAkunSetor
+              } \n<b>Nilai setor : ${formatRupiah(
+                dataSetor.yangDisetor
+              )} </b> </b>\n<b>Nilai Yang Harus Disetor: ${formatRupiah(
+                parseInt(dataModal[0].jml) - parseInt(dataSetor.modalSeharusnya)
+              )} </b>\n<b>Selisih : </b> ${ketSetor} ${formatRupiah(
+                Math.abs(
+                  parseInt(dataSetor.yangDisetor) -
+                    (parseInt(dataModal[0].jml) -
+                      parseInt(dataSetor.modalSeharusnya))
+                )
+              )}\n\n`;
+
+              console.log(result[0]);
+              sendMessage(text);
+            }
+          }
+
+          if (ket == "Kurang") {
+            await handleSelisihKurang(Math.abs(selisih), "Kurang");
+            Swal.fire({
+              title: "Perhatian!",
+              text: `Selisih Kurang Sejumlah ${formatRupiah(
+                Math.abs(selisih)
+              )} Di Jurnal Otomatis Ke Piutang Karyawan `,
+              confirmButtonText: "OK",
+            });
+          } else if (ket == "Lebih") {
+            await handleSelisihLebih(Math.abs(selisih), "Lebih");
+
+            Swal.fire({
+              title: "Perhatian!",
+              text: `Selisih Lebih Sejumlah ${formatRupiah(
+                Math.abs(selisih)
+              )} Di Jurnal Otomatis Ke Pendapatan Lain-lain `,
+              confirmButtonText: "OK",
+            });
+          }
+          const kosong = [];
+          const cekRiwayat = await getHistory(
+            Math.abs(selisih),
+            data.namaUser,
+            kosong
+          );
+
+          // alert(cekRiwayat.data.length);
+          if (cekRiwayat.data.length == 0) {
+            console.log("Hasil riwayat", cekRiwayat);
+
+            await handleHistory(
+              dataCash[0],
+              Math.abs(selisih),
+              data.namaUser,
+              data.data
+            );
+          }
+          await handleDetailKas();
+
+          console.log(data, "data result");
+          await new Promise((resolve) => {
+            setDataCashflow1(result[0]);
+            setDataCashflow2(result[1]);
+            setDataCashflow3(result[2]);
+            setdataKas(data);
+            setisCek(true);
+            setCek(false);
+            setIsStateSet(true); // Update flag state
+            resolve(); // Pastikan promise ini diselesaikan
+          });
+
+          console.log(result, "hasil");
+
           const text = `\n\n<b> ${
             data.namaPerusahaan
           }</b>\n---------------------------------------------------------------------\n<b>Riwayat Pengecekan Nominal Cashflow Yang Tidak Sesuai Pada Sistem Acosys</b>\n\n<b>Nama Pengecek :  </b>${
